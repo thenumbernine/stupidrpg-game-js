@@ -3563,8 +3563,8 @@ function setMap(args) {
 	if ('done' in args) args.done();
 
 	clientMessage("Entering "+map.name);
-	
-	draw();
+
+	setTimeout(draw, 500);
 }
 
 
