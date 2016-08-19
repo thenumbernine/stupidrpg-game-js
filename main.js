@@ -363,7 +363,7 @@ ClientPrompt.prototype = {
 	},
 	refreshPos : function() {
 		this.div.style.left = (0 + (clientPromptStack.indexOf(this) + 1) * 10)+'px';
-		this.div.style.top = (fontSize + 4 + (clientPromptStack.indexOf(this) + 1) * 10)+'px';
+		this.div.style.top = (fontSize + 4 + (clientPromptStack.indexOf(this) + 0) * 10)+'px';
 	},
 	refreshContent : function() {
 		this.div.scrollTop = (fontSize+8)*this.topIndex;
@@ -3998,7 +3998,7 @@ function resizeButtons() {
 var baseRatio = 64/2000;	//2000 resolution, 64 tilesize
 function onresize() {
 	canvas.width = $(window).width();
-	canvas.height = $(window).height() - 50;
+	canvas.height = $(window).height();
 	tileSize.x = tileSize.y = Math.ceil(canvas.width*baseRatio);
 	fontSize = Math.ceil(canvas.width*64/2000);
 	draw();
@@ -4018,7 +4018,7 @@ function initGame() {
 	canvas = $('<canvas>', {
 		css:{
 			position:'absolute',
-			top:'50px',
+			top:'0px',
 			left:'0px'
 		}
 	}).attr('width', 640)

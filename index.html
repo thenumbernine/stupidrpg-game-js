@@ -24,7 +24,25 @@
 		</script>
 	</head>
 	<body>
-		<div style='position:absolute; z-index:10'>
+<script>
+  window.fbAsyncInit = function() {
+    FB.init({
+      appId      : '1125030857556504',
+      xfbml      : true,
+      version    : 'v2.7'
+    });
+  };
+
+  (function(d, s, id){
+     var js, fjs = d.getElementsByTagName(s)[0];
+     if (d.getElementById(id)) {return;}
+     js = d.createElement(s); js.id = id;
+     js.src = "//connect.facebook.net/en_US/sdk.js";
+     fjs.parentNode.insertBefore(js, fjs);
+   }(document, 'script', 'facebook-jssdk'));
+</script>		
+		
+		<!-- div style='position:absolute; z-index:10'>
 			<script type="text/javascript">
 var inmobi_conf = {
 	siteid : "abeaff0dfd724f61b2577e5a739441de",
@@ -36,6 +54,15 @@ var inmobi_conf = {
 };
 			</script>
 			<script type="text/javascript" src="http://cf.cdn.inmobi.com/ad/inmobi.js"></script>
-		</div>
+		</div-->
+
+<div
+  class="fb-like"
+  data-share="true"
+  data-width="450"
+  data-show-faces="true"
+  style="position:absolute; left:5px; bottom:5px; z-index:100">
+</div>
+
 	</body>
 </html>
