@@ -3609,6 +3609,38 @@ function keyEventHandler(event) {
 }
 
 
+var lastMouseEvent;
+var mouseIntervalMethod = 2;
+var mouseDownInterval;
+function handleButtonCommand(cmd, press) {
+	if (!player) reeturn;
+	
+	if (press) {
+		if (mouseIntervalMethod == 0) {
+			handleCommand(cmd);
+		} else {
+			if (mouseDownInterval !== undefined) {
+				if (mouseIntervalMethod == 1) {
+					clearInterval(mouseDownInterval);
+				} else if (mouseIntervalMethod == 2) {
+					return;
+				}
+			}
+			handleCommand(cmd);
+			mouseDownInterval = setInterval(function() {
+				handleCommand(cmd);
+			}, 300);
+		}
+	} else if (event.type == 'mouseup') {
+		if (mouseIntervalMethod != 0) {
+			if (mouseDownInterval !== undefined) clearInterval(mouseDownInterval);
+			mouseDownInterval = undefined;
+		}
+	}
+
+}
+
+// TODO instead, how about doing the timeout inside 'handleButtonCommand' ?
 function handleScreenEvent(event) {
 	if (!player) return;
 	var x = event.pageX / $(window).width();
@@ -3622,68 +3654,14 @@ function handleScreenEvent(event) {
 	}
 }
 
-var mouseIntervalMethod = 2;
-var mouseDownInterval;
-var lastMouseEvent;
 function mouseEventHandler(event) {
 	buttonSys.show();
 	event.preventDefault();
-	lastMouseEvent = event;
-	if (event.type == 'mousedown') {
-		if (mouseIntervalMethod == 0) {
-			handleScreenEvent(lastMouseEvent);
-		} else {
-			if (mouseDownInterval !== undefined) {
-				if (mouseIntervalMethod == 1) {
-					clearInterval(mouseDownInterval);
-				} else if (mouseIntervalMethod == 2) {
-					return;
-				}
-			}
-			handleScreenEvent(lastMouseEvent);
-			mouseDownInterval = setInterval(function() {
-				handleScreenEvent(lastMouseEvent);
-			}, 300);
-		}
-	} else if (event.type == 'mouseup') {
-		if (mouseIntervalMethod != 0) {
-			if (mouseDownInterval !== undefined) clearInterval(mouseDownInterval);
-			mouseDownInterval = undefined;
-		}
-	}
 }
 
-var touchIntervalMethod = 2;
-var touchInterval;
-var lastTouch;
 function touchEventHandler(event) {
 	buttonSys.show();
 	event.preventDefault();
-	lastTouch = event.touches[0];
-	if (event.type == 'touchstart') {
-		if (touchIntervalMethod == 0) {
-			handleScreenEvent(lastTouch);
-		} else {
-			if (touchInterval !== undefined) {
-				if (touchIntervalMethod == 1) {
-					//method 1: repeat keys = repeat events
-					clearInterval(touchInterval);
-				} else if (touchIntervalMethod == 2) {
-					//method 2: delay
-					return;
-				}
-			}
-			if (lastTouch) handleScreenEvent(lastTouch);
-			touchInterval = setInterval(function() {
-				if (lastTouch) handleScreenEvent(lastTouch);
-			}, 300);
-		}
-	} else if (event.type == 'toouchend' || event.type == 'touchcancel') {
-		if (touchIntervalMethod != 0) {
-			if (touchInterval !== undefined) clearInterval(touchInterval);
-			touchInterval = undefined;
-		}
-	}
 }
 
 var baseRatio = 64/2000;	//2000 resolution, 64 tilesize
@@ -3831,7 +3809,7 @@ function initGame() {
 
 	buttonSys.init({
 		fontSize : fontSize,
-		//callback?
+		callback : handleButtonCommand,
 		buttons : buttonInfos
 	});
 	

@@ -8,7 +8,7 @@ var Button = makeClass({
 		this.cmd = args.cmd;
 		this.url = args.url;
 		var fontSize = args.fontSize || 24;
-		//var callback = assertExists(args, 'callback');
+		var callback = assertExists(args, 'callback');
 		this.dom = $('<div>', {
 			css:{
 				backgroundColor:'rgb(255,255,255)',
@@ -19,8 +19,19 @@ var Button = makeClass({
 				backgroundSize:'100%',
 				zIndex:1
 			}
+		}).mousedown(function() {
+			callback(thiz.cmd, true);
+		}).mouseup(function() {
+			callback(thiz.cmd, false);
+		}).mouseleave(function() {
+			callback(thiz.cmd, false);
+		}).bind('touchstart', function() {
+			callback(thiz.cmd, true);
+		}).bind('touchend', function() {
+			callback(thiz.cmd, false);
+		}).bind('touchcancel', function() {
+			callback(thiz.cmd, false);
 		})
-			//.mousedown(function(event) {handleCommand(thiz.cmd);})
 			.fadeTo(0, .75)
 			.hide()
 			.appendTo(document.body).get(0);
