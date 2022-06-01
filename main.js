@@ -3613,7 +3613,7 @@ var lastMouseEvent;
 var mouseIntervalMethod = 1;
 var mouseDownInterval;
 function handleButtonCommand(cmd, press) {
-	if (!player) reeturn;
+	if (!player) return;
 	
 	if (press) {
 		if (mouseIntervalMethod == 0) {
