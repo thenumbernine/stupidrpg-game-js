@@ -3609,15 +3609,15 @@ function keyEventHandler(event) {
 }
 
 
-//TODO how is this so much worse than bank's button system?
-
 function handleScreenEvent(event) {
 	if (!player) return;
 	var x = event.pageX / $(window).width();
 	var y = event.pageY / $(window).height();
 	for (var i = 0; i < buttonSys.buttons.length; i++) {
 		var button = buttonSys.buttons[i];
-		if (button.bbox.contains(new vec2(x,y))) {
+		//TODO maybe change buttonSys to use box2 class?
+		//if (button.bbox.contains(new vec2(x,y))) {
+		if (new box2(button.bbox).contains(new vec2(x,1-y))) {
 			handleCommand(button.cmd);
 			break;
 		}
@@ -3712,12 +3712,12 @@ var buttonBorder = new vec2(.02, .04);
 var buttonSeparation = new vec2(.005, .01);
 var buttonSize = new vec2(.1, .2);
 var buttonInfos = [
-	{cmd:'left', url:'icons/left.png', bbox:new box2(buttonBorder.x, 1-buttonBorder.y-buttonSize.y, buttonBorder.x+buttonSize.x, 1-buttonBorder.y)},
-	{cmd:'down', url:'icons/down.png', bbox:new box2(buttonBorder.x+buttonSize.x+buttonSeparation.x, 1-buttonBorder.y-buttonSize.y, buttonBorder.x+2*buttonSize.x+buttonSeparation.x, 1-buttonBorder.y)},
-	{cmd:'up', url:'icons/up.png', bbox:new box2(buttonBorder.x+buttonSize.x+buttonSeparation.x, 1-buttonBorder.y-buttonSize.y*2-buttonSeparation.y, buttonBorder.x+2*buttonSize.x+buttonSeparation.x, 1-buttonBorder.y-buttonSize.y-buttonSeparation.y)},
-	{cmd:'right', url:'icons/right.png', bbox:new box2(buttonBorder.x+buttonSize.x*2+buttonSeparation.x*2, 1-buttonBorder.y-buttonSize.y, buttonBorder.x+3*buttonSize.x+buttonSeparation.x*2, 1-buttonBorder.y)},
-	{cmd:'ok', url:'icons/ok.png', bbox:new box2(1-buttonBorder.x-buttonSize.x, 1-buttonBorder.y-buttonSize.y, 1-buttonBorder.x, 1-buttonBorder.y)},
-	{cmd:'cancel', url:'icons/cancel.png', bbox:new box2(1-buttonBorder.x-buttonSize.x*2-buttonSeparation.x, 1-buttonBorder.y-buttonSize.y, 1-buttonBorder.x-buttonSize.x-buttonSeparation.x, 1-buttonBorder.y)} 
+	{cmd:'left', url:'icons/left.png', bbox:{min:[buttonBorder.x, 1-buttonBorder.y-buttonSize.y], max:[buttonBorder.x+buttonSize.x, 1-buttonBorder.y]}},
+	{cmd:'down', url:'icons/down.png', bbox:{min:[buttonBorder.x+buttonSize.x+buttonSeparation.x, 1-buttonBorder.y-buttonSize.y], max:[buttonBorder.x+2*buttonSize.x+buttonSeparation.x, 1-buttonBorder.y]}},
+	{cmd:'up', url:'icons/up.png', bbox:{min:[buttonBorder.x+buttonSize.x+buttonSeparation.x, 1-buttonBorder.y-buttonSize.y*2-buttonSeparation.y], max:[buttonBorder.x+2*buttonSize.x+buttonSeparation.x, 1-buttonBorder.y-buttonSize.y-buttonSeparation.y]}},
+	{cmd:'right', url:'icons/right.png', bbox:{min:[buttonBorder.x+buttonSize.x*2+buttonSeparation.x*2, 1-buttonBorder.y-buttonSize.y], max:[buttonBorder.x+3*buttonSize.x+buttonSeparation.x*2, 1-buttonBorder.y]}},
+	{cmd:'ok', url:'icons/ok.png', bbox:{min:[1-buttonBorder.x-buttonSize.x, 1-buttonBorder.y-buttonSize.y], max:[1-buttonBorder.x, 1-buttonBorder.y]}},
+	{cmd:'cancel', url:'icons/cancel.png', bbox:{min:[1-buttonBorder.x-buttonSize.x*2-buttonSeparation.x, 1-buttonBorder.y-buttonSize.y], max:[1-buttonBorder.x-buttonSize.x-buttonSeparation.x, 1-buttonBorder.y]}} 
 ];
 
 function initGame() {
