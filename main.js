@@ -3790,6 +3790,7 @@ function initGame() {
 	$(window).resize(onresize);
 
 	buttonSys.init({
+		fontSize : fontSize,
 		//callback?
 		buttons : buttonInfos
 	});
