@@ -1,3 +1,5 @@
+//touch screen stuff
+
 var Button = makeClass({
 	init : function(args) {
 		var thiz = this;
@@ -5,9 +7,10 @@ var Button = makeClass({
 		this.screenBBox = {min:[0,0], max:[0,0]};
 		this.cmd = args.cmd;
 		this.url = args.url;
-		var fontSize = args.fontSize;
+		var fontSize = args.fontSize || 24;
+		//var callback = assertExists(args, 'callback');
 		this.dom = $('<div>', {
-			style:{
+			css:{
 				backgroundColor:'rgb(255,255,255)',
 				position:'absolute',
 				textAlign:'center',
@@ -54,13 +57,6 @@ var Button = makeClass({
 		this.dom.style.top = this.screenBBox.min[1]+'px';
 		this.dom.style.width = (this.screenBBox.max[0] - this.screenBBox.min[0]) + 'px';
 		this.dom.style.height = (this.screenBBox.max[1] - this.screenBBox.min[1]) + 'px';
-	
-		/*
-		this.dom.style.left = (width * this.bbox.min.x)+'px';
-		this.dom.style.top = (height * this.bbox.min.y)+'px';
-		this.dom.style.width = (width * (this.bbox.max.x - this.bbox.min.x))+'px';
-		this.dom.style.height = (height * (this.bbox.max.y - this.bbox.min.y))+'px';
-		*/
 	}
 });
 
@@ -68,6 +64,7 @@ var buttonSys = new function() {
 	/*
 	args:
 		fontSize
+		callback = button event handler : function(string cmd, boolean press);
 		buttons = [
 			{
 				string cmd,
@@ -76,13 +73,13 @@ var buttonSys = new function() {
 			},
 			...
 		]
-		TODO callback
 	*/
 	this.init = function(args) {
 		this.buttons = [];
 		for (var i = 0; i < args.buttons.length; i++) {
 			var buttonInfo = args.buttons[i];
 			buttonInfo.fontSize = args.fontSize;
+			buttonInfo.callback = args.callback;
 			this.buttons.push(new Button(buttonInfo));
 		}
 	};
