@@ -16,23 +16,6 @@ general client prompt
 
 // util functions
 
-(function($){
-	$.fn.disableSelection = function() {
-		return this.each(function() {
-			$(this).attr('unselectable', 'on')
-			   .css({
-				   '-moz-user-select':'none',
-				   '-webkit-user-select':'none',
-				   'user-select':'none',
-				   '-ms-user-select':'none'
-			   })
-			   .each(function() {
-				   this.onselectstart = function() { return false; };
-			   });
-		});
-	};
-})(jQuery);
-
 Math.sign = function(x) {
 	if (x < 0) return -1;
 	if (x > 0) return 1;
@@ -59,28 +42,6 @@ function randomBoxPos(box) {
 	return new vec2(
 		randomRange(box.min.x,box.max.x),
 		randomRange(box.min.y,box.max.y));
-}
-
-function assert(s, msg) {
-	if (!s) throw msg || "assertion failed!";
-	return s;
-}
-
-function assertEquals(a,b,msg) {
-	if (a != b) throw a+"!="+b+": "+(msg || "assertion failed!");
-	return true;
-}
-
-function assertExists(obj,field,msg) {
-	if (!(field in obj)) throw "no "+field+" in "+obj+": "+(msg || "assertion failed!");
-	return obj[field];
-}
-
-function mergeInto(mergedst, mergesrc) {
-	for (var k in mergesrc) {
-		if (!(k in mergedst)) mergedst[k] = mergesrc[k];
-	}
-	return mergedst;
 }
 
 function distLInf(a,b) {
@@ -404,195 +365,6 @@ ClientPrompt.prototype = {
 		this.refreshContent();
 	}
 };
-
-function isa(subclassObj, classObj) {
-	if (subclassObj == classObj) return true;
-	if ('super' in subclassObj.prototype) return isa(subclassObj.prototype.super, classObj);
-	return false;
-}
-
-/*
-args.init is the function that becomes the class object
-args.super is the parent class
-the rest of args becomes the prototype
-if super is provided then super's prototype is merged into this class' prototype
-*/
-function makeClass(args) {
-	var classname = ('classname' in args) ? args.classname : 'classObj';
-	if (args == undefined) args = {};
-	if (!('init' in args)) {
-		if ('super' in args) {
-			args.init = eval('var '+classname+' = function() { args.super.apply(this, arguments); }; '+classname+';');
-		} else {
-			args.init = eval('var '+classname+' = function() {}; '+classname+';');
-		}		
-	}
-	var classFunc = args.init;
-	
-	classFunc.prototype = args;
-	if ('super' in args) {
-		mergeInto(classFunc.prototype, args.super.prototype);
-		classFunc.super = args.super;
-		classFunc.superProto = args.super.prototype;
-	}
-	classFunc.prototype.isa = function(classObj) {
-		return isa(this.init, classObj);
-	}
-
-	return classFunc;
-}
-
-function makevec(n) {
-	var allFields = ['x', 'y', 'z', 'w'];
-	assert(n <= allFields.length);
-	var fields = allFields.splice(0,n);
-	var repeat = function(str, repl, sep) {
-		if (sep == undefined) sep = ' ';
-		var res = [];
-		
-		var repeatLength;
-		for (var k in repl) {
-			if (repeatLength == undefined) {
-				repeatLength = repl[k].length;
-			} else {
-				assert(repeatLength == repl[k].length);
-			}
-		}
-		
-		for (var i = 0; i < repeatLength; i++) {
-			var s = str;
-			for (var k in repl) {
-				s = s.replace(new RegExp('\\$'+k, 'g'), repl[k][i]);
-			}
-			s = s.replace(new RegExp('\\#', 'g'), i);
-			res.push(s);
-		}
-		return res.join(sep);
-	};
-	var s = '\
-	var vec'+n+' = function() {\n\
-		switch (arguments.length) {\n\
-		case 0: '+repeat('this.$field = 0;', {field:fields})+' break;\n\
-		case 1:\n\
-			var v = arguments[0];\n\
-			if (typeof(v) == "object" && '+repeat('"$field" in v', {field:fields}, ' && ')+') {\n\
-				'+repeat('this.$field = v.$field;', {field:fields})+'\n\
-			} else {\n\
-				v = parseFloat(v);\n\
-				'+repeat('this.$field = v;', {field:fields})+'\n\
-			}\n\
-			break;\n\
-		default: '+repeat('this.$field = parseFloat(arguments[#]);', {field:fields})+' break;\n\
-		}\n\
-	};\n\
-	vec'+n+'.prototype = {\n\
-		set : function() {\n\
-			switch (arguments.length) {\n\
-			case 0:'+repeat('this.$field = 0;', {field:fields})+' break;\n\
-			case 1: var v = arguments[0]; '+repeat('this.$field = v.$field;', {field:fields})+' break;\n\
-			case '+n+':'+repeat('this.$field = arguments[#];', {field:fields})+' break;\n\
-			default: throw "set needs '+n+' arguments";\n\
-			};\n\
-			return this;\n\
-		},\n\
-		toString : function() { return '+repeat('this.$field', {field:fields}, ' + "," + ')+'; },\n\
-		tileDist : function(v) { return '+repeat('Math.abs(Math.floor(this.$field + .5) - Math.floor(v.$field + .5))', {field:fields}, ' + ')+'; },\n\
-		tileEquals : function(v) { return this.tileDist(v) == 0; },\n\
-		equals : function(v) { return '+repeat('this.$field == v.$field', {field:fields}, ' && ')+'; },\n\
-		neg : function() { return new vec'+n+'('+repeat('-this.$field', {field:fields}, ',')+'); },\n\
-		'+repeat('\n\
-		$op : function(v) {\n\
-			if (typeof(v) == "object" && '+repeat('"$field" in v', {field:fields}, ' && ')+') return new vec'+n+'('+repeat('this.$field $sym v.$field', {field:fields}, ',')+');\n\
-			return new vec'+n+'('+repeat('this.$field $sym v', {field:fields}, ',')+');\n\
-		},', {op:['add', 'sub', 'mul', 'div'], sym:['+', '-', '*', '/']})+'\n\
-		clamp : function() {\n\
-			var mins, maxs;\n\
-			if (arguments.length == 1 && "min" in arguments[0] && "max" in arguments[0]) {\n\
-				mins = arguments[0].min;\n\
-				maxs = arguments[0].max;\n\
-			} else {\n\
-				mins = arguments[0];\n\
-				maxs = arguments[1];\n\
-			}\n\
-			'+repeat('\n\
-			if (this.$field < mins.$field) this.$field = mins.$field;\n\
-			if (this.$field > maxs.$field) this.$field = maxs.$field;', {field:fields}, '\n')+'\n\
-			return this;\n\
-		},\n\
-		floor : function() {'+repeat('this.$field = Math.floor(this.$field);',{field:fields})+' return this; }\n\
-	};\n\
-	vec'+n+';';
-	//console.log(s);
-	return eval(s);
-}
-var vec2 = makevec(2);
-var vec3 = makevec(3);
-
-
-function box2() {
-	switch (arguments.length) {
-	case 0:
-		this.min = new vec2();
-		this.max = new vec2();
-		break;
-	case 1:
-		var v = arguments[0];
-		if (typeof(v) == 'object') {
-			if ('min' in v && 'max' in v) {
-				this.min = new vec2(v.min);
-				this.max = new vec2(v.max);
-			} else if ('x' in v && 'y' in v) {
-				this.max = new vec2(v);
-				this.min = this.max.neg();
-			}
-		} else {
-			v = parseFloat(v);
-			this.max = new vec2(v, v);
-			this.min = this.max.neg();
-		}
-		break;
-	case 4:
-		this.min = new vec2(arguments[0], arguments[1]);
-		this.max = new vec2(arguments[2], arguments[3]);
-		break;
-	default:
-		this.min = new vec2(arguments[0]);
-		this.max = new vec2(arguments[1]);
-		break;
-	}
-}
-box2.prototype = {
-	toString : function() { return this.min + ':' + this.max; },
-	size : function() { return this.max.sub(this.min); },
-	contains : function(v) {
-		if ('min' in v && 'max' in v) {
-			return this.contains(v.min) && this.contains(v.max);
-		} else {
-			return v.x >= this.min.x && v.x <= this.max.x
-				&& v.y >= this.min.y && v.y <= this.max.y;
-		}
-	},
-	touches : function(b) {
-		return b.min.x <= this.max.x && this.min.x <= b.max.x
-			&& b.min.y <= this.max.y && this.min.y <= b.max.y;
-	},
-	clamp : function(b) {
-		this.min.clamp(b);
-		this.max.clamp(b);
-		return this;
-	},
-	stretch : function(v) {
-		if ('min' in v && 'max' in v) {
-			this.stretch(v.min);
-			this.stretch(v.max);
-		} else {
-			if (this.min.x > v.x) this.min.x = v.x;
-			if (this.max.x < v.x) this.max.x = v.x;
-			if (this.min.y > v.y) this.min.y = v.y;
-			if (this.max.y < v.y) this.max.y = v.y;
-		}
-	}
-}
 
 var dirs = [
 	{name:'e', offset:new vec2(1,0)},
@@ -3837,28 +3609,14 @@ function keyEventHandler(event) {
 }
 
 
-
-var buttons = [];
-
-var buttonBorder = new vec2(.02, .04);
-var buttonSeparation = new vec2(.005, .01);
-var buttonSize = new vec2(.1, .2);
-
-var buttonInfos = [
-	{cmd:'left', url:'icons/left.png', bbox:new box2(buttonBorder.x, 1-buttonBorder.y-buttonSize.y, buttonBorder.x+buttonSize.x, 1-buttonBorder.y)},
-	{cmd:'down', url:'icons/down.png', bbox:new box2(buttonBorder.x+buttonSize.x+buttonSeparation.x, 1-buttonBorder.y-buttonSize.y, buttonBorder.x+2*buttonSize.x+buttonSeparation.x, 1-buttonBorder.y)},
-	{cmd:'up', url:'icons/up.png', bbox:new box2(buttonBorder.x+buttonSize.x+buttonSeparation.x, 1-buttonBorder.y-buttonSize.y*2-buttonSeparation.y, buttonBorder.x+2*buttonSize.x+buttonSeparation.x, 1-buttonBorder.y-buttonSize.y-buttonSeparation.y)},
-	{cmd:'right', url:'icons/right.png', bbox:new box2(buttonBorder.x+buttonSize.x*2+buttonSeparation.x*2, 1-buttonBorder.y-buttonSize.y, buttonBorder.x+3*buttonSize.x+buttonSeparation.x*2, 1-buttonBorder.y)},
-	{cmd:'ok', url:'icons/ok.png', bbox:new box2(1-buttonBorder.x-buttonSize.x, 1-buttonBorder.y-buttonSize.y, 1-buttonBorder.x, 1-buttonBorder.y)},
-	{cmd:'cancel', url:'icons/cancel.png', bbox:new box2(1-buttonBorder.x-buttonSize.x*2-buttonSeparation.x, 1-buttonBorder.y-buttonSize.y, 1-buttonBorder.x-buttonSize.x-buttonSeparation.x, 1-buttonBorder.y)} 
-];
+//TODO how is this so much worse than bank's button system?
 
 function handleScreenEvent(event) {
 	if (!player) return;
 	var x = event.pageX / $(window).width();
 	var y = event.pageY / $(window).height();
-	for (var i = 0; i < buttons.length; i++) {
-		var button = buttons[i];
+	for (var i = 0; i < buttonSys.buttons.length; i++) {
+		var button = buttonSys.buttons[i];
 		if (button.bbox.contains(new vec2(x,y))) {
 			handleCommand(button.cmd);
 			break;
@@ -3870,7 +3628,7 @@ var mouseIntervalMethod = 2;
 var mouseDownInterval;
 var lastMouseEvent;
 function mouseEventHandler(event) {
-	showButtons();
+	buttonSys.show();
 	event.preventDefault();
 	lastMouseEvent = event;
 	if (event.type == 'mousedown') {
@@ -3901,7 +3659,7 @@ var touchIntervalMethod = 2;
 var touchInterval;
 var lastTouch;
 function touchEventHandler(event) {
-	showButtons();
+	buttonSys.show();
 	event.preventDefault();
 	lastTouch = event.touches[0];
 	if (event.type == 'touchstart') {
@@ -3930,71 +3688,6 @@ function touchEventHandler(event) {
 	}
 }
 
-function buttonMouseDown(event) {
-	handleCommand(this.cmd);
-}
-
-var Button = makeClass({
-	init : function(args) {
-		this.bbox = args.bbox;
-		this.cmd = args.cmd;
-		this.url = args.url;
-		this.dom = makeDOM('div', {
-			parent:document.body,
-			cmd:args.cmd,
-			style:{
-				backgroundColor:'rgb(255,255,255)',
-				position:'absolute',
-				textAlign:'center',
-				fontSize:Math.ceil(fontSize*.65)+'pt',
-				background:'url('+args.url+') no-repeat',
-				backgroundSize:'100%'
-			}
-		});
-		$(this.dom).fadeTo(0, 0);
-		$(this.dom).disableSelection();
-		//$(this.dom).mousedown(buttonMouseDown);
-		this.refresh();
-	},
-	refresh : function() {
-		var width = $(window).width();
-		var height = $(window).height();
-		this.dom.style.left = (width * this.bbox.min.x)+'px';
-		this.dom.style.top = (height * this.bbox.min.y)+'px';
-		this.dom.style.width = (width * (this.bbox.max.x - this.bbox.min.x))+'px';
-		this.dom.style.height = (height * (this.bbox.max.y - this.bbox.min.y))+'px';
-	}
-});
-
-var hideFadeDuration = 5000;
-var fadeButtonsTimeout = undefined;
-function showButtons() {
-	for (var i = 0; i < buttons.length; i++) {
-		var buttonDOM = buttons[i].dom;
-		$(buttonDOM).fadeTo(0, .75);
-	}
-	if (fadeButtonsTimeout) clearTimeout(fadeButtonsTimeout);
-	fadeButtonsTimeout = setTimeout(function() {
-		for (var i = 0; i < buttons.length; i++) {
-			var buttonDOM = buttons[i].dom;
-			$(buttonDOM).fadeTo(1000, 0);
-		}
-	}, hideFadeDuration);
-}
-
-function initButtons() {
-	for (var i = 0; i < buttonInfos.length; i++) {
-		var buttonInfo = buttonInfos[i];
-		buttons.push(new Button(buttonInfo));
-	}
-}
-
-function resizeButtons() {
-	for (var i = 0; i < buttons.length; i++) {
-		buttons[i].refresh();
-	}
-}
-
 var baseRatio = 64/2000;	//2000 resolution, 64 tilesize
 function onresize() {
 	canvas.width = $(window).width();
@@ -4002,7 +3695,7 @@ function onresize() {
 	tileSize.x = tileSize.y = Math.ceil(canvas.width*baseRatio);
 	fontSize = Math.ceil(canvas.width*64/2000);
 	draw();
-	resizeButtons();
+	buttonSys.onresize();
 }
 
 function zoomIn() { baseRatio *= 2; onresize(); }
@@ -4013,6 +3706,19 @@ function cheat() {
 	player.spells = spells.slice(); 
 	draw();
 }
+
+// buttonInfos - used by buttonSys.init and by image precaching
+var buttonBorder = new vec2(.02, .04);
+var buttonSeparation = new vec2(.005, .01);
+var buttonSize = new vec2(.1, .2);
+var buttonInfos = [
+	{cmd:'left', url:'icons/left.png', bbox:new box2(buttonBorder.x, 1-buttonBorder.y-buttonSize.y, buttonBorder.x+buttonSize.x, 1-buttonBorder.y)},
+	{cmd:'down', url:'icons/down.png', bbox:new box2(buttonBorder.x+buttonSize.x+buttonSeparation.x, 1-buttonBorder.y-buttonSize.y, buttonBorder.x+2*buttonSize.x+buttonSeparation.x, 1-buttonBorder.y)},
+	{cmd:'up', url:'icons/up.png', bbox:new box2(buttonBorder.x+buttonSize.x+buttonSeparation.x, 1-buttonBorder.y-buttonSize.y*2-buttonSeparation.y, buttonBorder.x+2*buttonSize.x+buttonSeparation.x, 1-buttonBorder.y-buttonSize.y-buttonSeparation.y)},
+	{cmd:'right', url:'icons/right.png', bbox:new box2(buttonBorder.x+buttonSize.x*2+buttonSeparation.x*2, 1-buttonBorder.y-buttonSize.y, buttonBorder.x+3*buttonSize.x+buttonSeparation.x*2, 1-buttonBorder.y)},
+	{cmd:'ok', url:'icons/ok.png', bbox:new box2(1-buttonBorder.x-buttonSize.x, 1-buttonBorder.y-buttonSize.y, 1-buttonBorder.x, 1-buttonBorder.y)},
+	{cmd:'cancel', url:'icons/cancel.png', bbox:new box2(1-buttonBorder.x-buttonSize.x*2-buttonSeparation.x, 1-buttonBorder.y-buttonSize.y, 1-buttonBorder.x-buttonSize.x-buttonSeparation.x, 1-buttonBorder.y)} 
+];
 
 function initGame() {
 	canvas = $('<canvas>', {
@@ -4082,9 +3788,13 @@ function initGame() {
 	//document.addEventListener('click', function(event) { event.preventDefault(); }, false);
 
 	$(window).resize(onresize);
-	onresize();
 
-	initButtons();
+	buttonSys.init({
+		//callback?
+		buttons : buttonInfos
+	});
+	
+	onresize();
 
 	player = new HeroObj({});
 	setMap({map:'Helpless Village'});
