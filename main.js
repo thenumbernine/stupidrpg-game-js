@@ -3610,7 +3610,7 @@ function keyEventHandler(event) {
 
 
 var lastMouseEvent;
-var mouseIntervalMethod = 2;
+var mouseIntervalMethod = 1;
 var mouseDownInterval;
 function handleButtonCommand(cmd, press) {
 	if (!player) reeturn;
@@ -3635,21 +3635,6 @@ function handleButtonCommand(cmd, press) {
 		if (mouseIntervalMethod != 0) {
 			if (mouseDownInterval !== undefined) clearInterval(mouseDownInterval);
 			mouseDownInterval = undefined;
-		}
-	}
-
-}
-
-// TODO instead, how about doing the timeout inside 'handleButtonCommand' ?
-function handleScreenEvent(event) {
-	if (!player) return;
-	var x = event.pageX / $(window).width();
-	var y = event.pageY / $(window).height();
-	for (var i = 0; i < buttonSys.buttons.length; i++) {
-		var button = buttonSys.buttons[i];
-		if (button.bbox.contains(new vec2(x,y))) {
-			handleCommand(button.cmd);
-			break;
 		}
 	}
 }
