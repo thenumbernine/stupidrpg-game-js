@@ -3628,6 +3628,7 @@ function handleButtonCommand(cmd, press) {
 			}
 			handleCommand(cmd);
 			mouseDownInterval = setInterval(function() {
+				if (mouseDownInterval === undefined) return;
 				handleCommand(cmd);
 			}, 300);
 		}
