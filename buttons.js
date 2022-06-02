@@ -27,8 +27,6 @@ var Button = makeClass({
 			callback(thiz.cmd, false);
 		}).bind('touchstart', function() {
 			callback(thiz.cmd, true);
-		}).bind('touchmove', function() {
-			callback(thiz.cmd, false);
 		}).bind('touchend', function() {
 			callback(thiz.cmd, false);
 		}).bind('touchcancel', function() {
