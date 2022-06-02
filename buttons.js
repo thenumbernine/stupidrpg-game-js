@@ -33,12 +33,6 @@ var Button = makeClass({
 			callback(thiz.cmd, false);
 		}).bind('touchcancel', function() {
 			callback(thiz.cmd, false);
-		}).bind('gesturestart', function() {
-			callback(thiz.cmd, true);
-		}).bind('gesturechange', function() {
-			callback(thiz.cmd, false);
-		}).bind('gestureend', function() {
-			callback(thiz.cmd, false);
 		})
 			.fadeTo(0, .75)
 			.hide()

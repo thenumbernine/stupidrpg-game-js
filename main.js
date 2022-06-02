@@ -3631,7 +3631,7 @@ function handleButtonCommand(cmd, press) {
 				handleCommand(cmd);
 			}, 300);
 		}
-	} else if (event.type == 'mouseup') {
+	} else {
 		if (mouseIntervalMethod != 0) {
 			if (mouseDownInterval !== undefined) clearInterval(mouseDownInterval);
 			mouseDownInterval = undefined;
