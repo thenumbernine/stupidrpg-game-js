@@ -3608,13 +3608,21 @@ function keyEventHandler(event) {
 	}
 }
 
-
+/*
+touch event order:
+touchstart
+touchend
+mousemove
+mousedown
+mouseup
+click
+*/
 var lastMouseEvent;
 var mouseIntervalMethod = 2;
 var mouseDownInterval;
-function handleButtonCommand(cmd, press) {
+function handleButtonCommand(cmd, press, e) {
 	if (!player) return;
-	
+	e.preventDefault();	//without this, touch events will cause multiple presses from touchstart and mousedown
 	if (press) {
 		if (mouseIntervalMethod == 0) {
 			handleCommand(cmd);
