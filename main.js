@@ -3610,7 +3610,7 @@ function keyEventHandler(event) {
 
 
 var lastMouseEvent;
-var mouseIntervalMethod = 1;
+var mouseIntervalMethod = 2;
 var mouseDownInterval;
 function handleButtonCommand(cmd, press) {
 	if (!player) return;
@@ -3641,12 +3641,12 @@ function handleButtonCommand(cmd, press) {
 
 function mouseEventHandler(event) {
 	buttonSys.show();
-	event.preventDefault();
+//	event.preventDefault();
 }
 
 function touchEventHandler(event) {
 	buttonSys.show();
-	event.preventDefault();
+//	event.preventDefault();
 }
 
 var baseRatio = 64/2000;	//2000 resolution, 64 tilesize
@@ -3777,16 +3777,16 @@ function initGame() {
 	$(document).keydown(keyEventHandler);
 	$(document).keyup(keyEventHandler);
 	$(document).mousedown(mouseEventHandler);
-	$(document).mouseup(mouseEventHandler);
+//	$(document).mouseup(mouseEventHandler);
 	//android...
 	if (document.addEventListener) {
 		document.addEventListener('touchstart', touchEventHandler, false);
-		document.addEventListener('touchmove', touchEventHandler, false);
-		document.addEventListener('touchend', touchEventHandler, false);
-		document.addEventListener('touchcancel', touchEventHandler, false);
+//		document.addEventListener('touchmove', touchEventHandler, false);
+//		document.addEventListener('touchend', touchEventHandler, false);
+//		document.addEventListener('touchcancel', touchEventHandler, false);
 		document.addEventListener('gesturestart', touchEventHandler, false);
-		document.addEventListener('gesturechange', touchEventHandler, false);
-		document.addEventListener('gestureend', touchEventHandler, false);
+//		document.addEventListener('gesturechange', touchEventHandler, false);
+//		document.addEventListener('gestureend', touchEventHandler, false);
 	}
 	//document.addEventListener('click', function(event) { event.preventDefault(); }, false);
 
