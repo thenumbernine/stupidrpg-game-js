@@ -19,11 +19,11 @@ var Button = makeClass({
 				backgroundSize:'100%',
 				zIndex:1
 			}
-		}).mousedown(function() {
+		}).bind('mousedown', function() {
 			callback(thiz.cmd, true);
-		}).mouseup(function() {
+		}).bind('mouseup', function() {
 			callback(thiz.cmd, false);
-		}).mouseleave(function() {
+		}).bind('mouseleave', function() {
 			callback(thiz.cmd, false);
 		}).bind('touchstart', function() {
 			callback(thiz.cmd, true);
