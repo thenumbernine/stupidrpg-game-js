@@ -14,7 +14,32 @@ general client prompt
 	integrate with display (no longer a dom)
 */
 
+import {DOM, preload, assert, assertExists} from '/js/util.js';
+import {vec2, box2} from '/js/vec.js';
+import {ButtonSys} from './buttons.js';
 // util functions
+
+//cl is a class
+//sub is a subclass or an instance of a subclass
+function isa(sub, cl) {
+	return sub instanceof cl
+		|| sub.prototype instanceof cl
+		|| sub === cl;
+}
+
+//I was hoping to replace my 'makeClass' function/new/prototype stuff with ES6 classes
+// too bad ES6 breaks static member access
+// I guess I still have a use for this, even using ES6 classes:
+function makeClass(x) {
+	let cl = class extends x.super {}
+	for (let k in x) {
+		if (k != 'super') {
+			cl.prototype[k] = x[k];
+		}
+	}
+	return cl;
+}
+
 
 Math.sign = function(x) {
 	if (x < 0) return -1;
@@ -23,8 +48,8 @@ Math.sign = function(x) {
 }
 
 function mapNames(ar) {
-	for (var i = 0; i < ar.length; i++) {
-		var v = ar[i];
+	for (let i = 0; i < ar.length; i++) {
+		let v = ar[i];
 		if (v.name in ar) console.log("array has two names "+v.name);
 		ar[v.name] = v; 
 	}
@@ -45,14 +70,14 @@ function randomBoxPos(box) {
 }
 
 function distLInf(a,b) {
-	var dx = Math.abs(a.x - b.x);
-	var dy = Math.abs(a.y - b.y);
+	let dx = Math.abs(a.x - b.x);
+	let dy = Math.abs(a.y - b.y);
 	return Math.max(dx,dy);
 }
 
 function distL1(a,b) {
-	var dx = Math.abs(a.x - b.x);
-	var dy = Math.abs(a.y - b.y);
+	let dx = Math.abs(a.x - b.x);
+	let dy = Math.abs(a.y - b.y);
 	return dx + dy;
 }
 
@@ -60,37 +85,15 @@ function round(x, r) {
 	return Math.round(x * r) / r;
 }
 
-function makeDOM(elem/*, props*/) {
-	var dom = document.createElement(elem);
-	if (arguments.length > 1) {
-		var props = arguments[1];
-		for (var k in props) {
-			if (k != 'style' && k != 'parent') {
-				dom[k] = props[k];
-			}
-		}
-		if ('style' in props) {
-			for (var k in props.style) {
-				dom.style[k] = props.style[k];
-			}
-		}
-		if ('parent' in props) {
-			props.parent.appendChild(dom);
-		}
-	}
-	return dom;
-}
-
-
 // 2D simplex noise
 
-var grad3 = [
+let grad3 = [
 	[1,1,0],[-1,1,0],[1,-1,0],[-1,-1,0],
 	[1,0,1],[-1,0,1],[1,0,-1],[-1,0,-1],
 	[0,1,1],[0,-1,1],[0,1,-1],[0,-1,-1]
 ];
 
-var p = [151,160,137,91,90,15,
+let p = [151,160,137,91,90,15,
 	131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,
 	190, 6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,
 	88,237,149,56,87,174,20,125,136,171,168, 68,175,74,165,71,134,139,48,27,166,
@@ -103,63 +106,63 @@ var p = [151,160,137,91,90,15,
 	251,34,242,193,238,210,144,12,191,179,162,241, 81,51,145,235,249,14,239,107,
 	49,192,214, 31,181,199,106,157,184, 84,204,176,115,121,50,45,127, 4,150,254,
 	138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180];
-var perm = [];
-for(var i=0; i<512; i++) perm[i]=p[i & 255];
+let perm = [];
+for(let i=0; i<512; i++) perm[i]=p[i & 255];
 
 function dot() {
-	var g = arguments[0];
-	var sum = 0;
-	for (var i=0; i < arguments.length-1; i++) {
+	let g = arguments[0];
+	let sum = 0;
+	for (let i=0; i < arguments.length-1; i++) {
 		sum += arguments[i+1] * g[i];
 	}
 	return sum;
 }
 
 function noise(xin, yin) {
-	var n0, n1, n2; // Noise contributions from the three corners
+	let n0, n1, n2; // Noise contributions from the three corners
 	// Skew the input space to determine which simplex cell we're in
-	var F2 = 0.5*(Math.sqrt(3.0)-1.0);
-	var s = (xin+yin)*F2; // Hairy factor for 2D
-	var i = Math.floor(xin+s);
-	var j = Math.floor(yin+s);
-	var G2 = (3.0-Math.sqrt(3.0))/6.0;
-	var t = (i+j)*G2;
-	var X0 = i-t; // Unskew the cell origin back to (x,y) space
-	var Y0 = j-t;
-	var x0 = xin-X0; // The x,y distances from the cell origin
-	var y0 = yin-Y0;
+	let F2 = 0.5*(Math.sqrt(3.0)-1.0);
+	let s = (xin+yin)*F2; // Hairy factor for 2D
+	let i = Math.floor(xin+s);
+	let j = Math.floor(yin+s);
+	let G2 = (3.0-Math.sqrt(3.0))/6.0;
+	let t = (i+j)*G2;
+	let X0 = i-t; // Unskew the cell origin back to (x,y) space
+	let Y0 = j-t;
+	let x0 = xin-X0; // The x,y distances from the cell origin
+	let y0 = yin-Y0;
 	// For the 2D case, the simplex shape is an equilateral triangle.
 	// Determine which simplex we are in.
-	var i1, j1; // Offsets for second (middle) corner of simplex in (i,j) coords
+	let i1, j1; // Offsets for second (middle) corner of simplex in (i,j) coords
 	if(x0>y0) {i1=1; j1=0;} // lower triangle, XY order: (0,0)->(1,0)->(1,1)
 	else {i1=0; j1=1;} // upper triangle, YX order: (0,0)->(0,1)->(1,1)
 	// A step of (1,0) in (i,j) means a step of (1-c,-c) in (x,y), and
 	// a step of (0,1) in (i,j) means a step of (-c,1-c) in (x,y), where
 	// c = (3-sqrt(3))/6
-	var x1 = x0 - i1 + G2; // Offsets for middle corner in (x,y) unskewed coords
-	var y1 = y0 - j1 + G2;
-	var x2 = x0 - 1.0 + 2.0 * G2; // Offsets for last corner in (x,y) unskewed coords
-	var y2 = y0 - 1.0 + 2.0 * G2;
+	let x1 = x0 - i1 + G2; // Offsets for middle corner in (x,y) unskewed coords
+	let y1 = y0 - j1 + G2;
+	let x2 = x0 - 1.0 + 2.0 * G2; // Offsets for last corner in (x,y) unskewed coords
+	let y2 = y0 - 1.0 + 2.0 * G2;
 	// Work out the hashed gradient indices of the three simplex corners
-	var ii = i & 255;
-	var jj = j & 255;
-	var gi0 = perm[ii+perm[jj]] % 12;
-	var gi1 = perm[ii+i1+perm[jj+j1]] % 12;
-	var gi2 = perm[ii+1+perm[jj+1]] % 12;
+	let ii = i & 255;
+	let jj = j & 255;
+	let gi0 = perm[ii+perm[jj]] % 12;
+	let gi1 = perm[ii+i1+perm[jj+j1]] % 12;
+	let gi2 = perm[ii+1+perm[jj+1]] % 12;
 	// Calculate the contribution from the three corners
-	var t0 = 0.5 - x0*x0-y0*y0;
+	let t0 = 0.5 - x0*x0-y0*y0;
 	if(t0<0) n0 = 0.0;
 	else {
 	t0 *= t0;
 	n0 = t0 * t0 * dot(grad3[gi0], x0, y0); // (x,y) of grad3 used for 2D gradient
 	}
-	var t1 = 0.5 - x1*x1-y1*y1;
+	let t1 = 0.5 - x1*x1-y1*y1;
 	if(t1<0) n1 = 0.0;
 	else {
 	t1 *= t1;
 	n1 = t1 * t1 * dot(grad3[gi1], x1, y1);
 	}
-	var t2 = 0.5 - x2*x2-y2*y2;
+	let t2 = 0.5 - x2*x2-y2*y2;
 	if(t2<0) n2 = 0.0;
 	else {
 	t2 *= t2;
@@ -174,13 +177,13 @@ function noise(xin, yin) {
 // client prompt stuff
 
 
-var popupMessage = [];
+let popupMessage = [];
 
 function clientMessage(str) {
 	popupMessage.splice(0, 0, str);
 }
 
-var clientPromptStack = [];
+let clientPromptStack = [];
 
 function closeAllPrompts() {
 	while (clientPromptStack.length) {
@@ -189,7 +192,7 @@ function closeAllPrompts() {
 }
 
 function promptKeyCallback(key, event) {
-	var clientPrompt = clientPromptStack[clientPromptStack.length-1];
+	let clientPrompt = clientPromptStack[clientPromptStack.length-1];
 	keyCallback = undefined;
 	switch (key) {
 	case 'ok':
@@ -216,7 +219,7 @@ function promptKeyCallback(key, event) {
 	case 'cancel':
 	default:
 		if (event != undefined && event.keyCode >= 49 && event.keyCode <= 57) {
-			var index = event.keyCode - 49;
+			let index = event.keyCode - 49;
 			index += clientPrompt.topIndex;
 			if (index >= 0 && index < clientPrompt.options.length) {
 				clientPrompt.onchoose(clientPrompt.options[index], index);
@@ -236,82 +239,81 @@ onselect
 onchoose
 onclose
 */
-function ClientPrompt(options, onchoose, onselect, onclose) {
-	options = options.slice();
-	this.div = makeDOM('div', {
-		parent:document.body,
-		style:{
-			position:'absolute',
-			border:'2px solid black',
-			color:'#ffffff',
-			fontSize:fontSize+'px',
-			overflow:'hidden',
-			scroll:'vertical'
-		}
-	});
-	var divsHigh = options.length;
-	if (divsHigh > 9) divsHigh = 9;
-	this.options = options;
-	this.onchoose = onchoose;
-	this.onselect = onselect;
-	this.onclose = onclose;
-	this.topIndex = 0;
-	this.index = 0;
-	this.optionDivs = [];
-	var visibleHeight = 0;//$(this.div).height();
-	for (var i = 0; i < options.length; i++) {
-		var option = options[i];
-		var optionDiv = makeDOM('div', {
-			style:{
-				border:'1px solid white',
-				paddingTop:'1px',
-				paddingBottom:'1px', 
-				paddingLeft:'4px',
-				paddingRight:'4px',
-				cursor:'pointer'
+class ClientPrompt {
+	constructor(options, onchoose, onselect, onclose) {
+		options = options.slice();
+		this.div = DOM('div', {
+			css:{
+				position:'absolute',
+				border:'2px solid black',
+				color:'#ffffff',
+				fontSize:fontSize+'px',
+				overflow:'hidden',
+				scroll:'vertical'
 			},
-			prompt:this,
-			parent:this.div,
-			innerHTML:''
+			appendTo:document.body,
 		});
-		this.optionDivs[i] = optionDiv;
-		if (i < divsHigh) visibleHeight += fontSize+12;//$(optionDiv).height();
-		/*
-		$(optionDiv).click(eval('\n\
-var v = function() {\n\
-	if (this.prompt.enabled) {\n\
-		this.prompt.disable();\n\
-		onchoose.call(this, "'+option+'", '+i+');\n\
-	}\n\
-}; v;'));
-		*/
-	}
-	this.div.style.height = visibleHeight+'px';
+		let divsHigh = options.length;
+		if (divsHigh > 9) divsHigh = 9;
+		this.options = options;
+		this.onchoose = onchoose;
+		this.onselect = onselect;
+		this.onclose = onclose;
+		this.topIndex = 0;
+		this.index = 0;
+		this.optionDivs = [];
+		let visibleHeight = 0;//this.div.offsetHeight;
+		for (let i = 0; i < options.length; i++) {
+			let option = options[i];
+			let optionDiv = DOM('div', {
+				css:{
+					border:'1px solid white',
+					paddingTop:'1px',
+					paddingBottom:'1px', 
+					paddingLeft:'4px',
+					paddingRight:'4px',
+					cursor:'pointer'
+				},
+				prompt:this,
+				appendTo:this.div,
+				innerHTML:''
+			});
+			this.optionDivs[i] = optionDiv;
+			if (i < divsHigh) visibleHeight += fontSize+12;//optionDiv.offsetHeight;
+			/*
+			optionDiv.addEventListener('click', eval('\n\
+	let v = function() {\n\
+		if (this.prompt.enabled) {\n\
+			this.prompt.disable();\n\
+			onchoose.call(this, "'+option+'", '+i+');\n\
+		}\n\
+	}; v;'));
+			*/
+		}
+		this.div.style.height = visibleHeight+'px';
 
-	if (clientPromptStack.length > 0) {
-		clientPromptStack[clientPromptStack.length-1].disable();
-	}
-	clientPromptStack.push(this);
+		if (clientPromptStack.length > 0) {
+			clientPromptStack[clientPromptStack.length-1].disable();
+		}
+		clientPromptStack.push(this);
 
-	keyCallback = promptKeyCallback;
-	
-	this.refreshPos();
-	this.enable();
-	this.refreshContent();
-}
-ClientPrompt.prototype = {
-	enabled : true,
-	enable : function() {
+		keyCallback = promptKeyCallback;
+		
+		this.refreshPos();
+		this.enable();
+		this.refreshContent();
+	}
+	enable() {
 		this.enabled = true;
 		this.div.style.background = '#595848';	//'#28288c';
-	},
-	disable : function() {
+	}
+	disable() {
 		this.enabled = false;
 		this.div.style.background = '#cfcfcf';
-	},
-	close : function() {
+	}
+	close() {
 		if (this.div.parentNode) this.div.parentNode.removeChild(this.div);
-		var index = clientPromptStack.indexOf(this);
+		let index = clientPromptStack.indexOf(this);
 		if (index != -1) {
 			if (index == clientPromptStack.length-1) {
 				if (index) {
@@ -321,16 +323,16 @@ ClientPrompt.prototype = {
 			clientPromptStack.splice(index, 1);
 		}
 		if (this.onclose) this.onclose();
-	},
-	refreshPos : function() {
+	}
+	refreshPos() {
 		this.div.style.left = (0 + (clientPromptStack.indexOf(this) + 1) * 10)+'px';
 		this.div.style.top = (fontSize + 4 + (clientPromptStack.indexOf(this) + 0) * 10)+'px';
-	},
-	refreshContent : function() {
+	}
+	refreshContent() {
 		this.div.scrollTop = (fontSize+8)*this.topIndex;
-		for (var i = 0; i < this.options.length; i++) {
-			var delta = i - this.topIndex;
-			var s = this.options[i];
+		for (let i = 0; i < this.options.length; i++) {
+			let delta = i - this.topIndex;
+			let s = this.options[i];
 			if (delta >= 0 && delta <= 8) {
 				s = (delta+1)+' - '+s;
 			}
@@ -341,8 +343,8 @@ ClientPrompt.prototype = {
 		if (this.onselect) {
 			this.onselect(this.options[this.index], this.index);
 		}
-	},
-	cycle : function(ofs) {
+	}
+	cycle(ofs) {
 		this.index += ofs;
 		/* wrap
 		this.index %= this.options.length;
@@ -364,9 +366,10 @@ ClientPrompt.prototype = {
 		
 		this.refreshContent();
 	}
-};
+}
+ClientPrompt.prototype.enabled = true;
 
-var dirs = [
+let dirs = [
 	{name:'e', offset:new vec2(1,0)},
 	{name:'s', offset:new vec2(0,1)},
 	{name:'w', offset:new vec2(-1,0)},
@@ -374,10 +377,10 @@ var dirs = [
 ];
 
 function getPixel(imgData, x, y) {
-	var i = 4 * (x + imgData.width * y);
-	var r = imgData.data[i++];
-	var g = imgData.data[i++];
-	var b = imgData.data[i++];
+	let i = 4 * (x + imgData.width * y);
+	let r = imgData.data[i++];
+	let g = imgData.data[i++];
+	let b = imgData.data[i++];
 	return ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff);
 }
 
@@ -385,8 +388,8 @@ function getPixel(imgData, x, y) {
 // spawn classes
 
 
-var GameObj = makeClass({
-	init : function(args) {
+class GameObj {
+	constructor(args) {
 		this.pos = new vec2();
 		if ('pos' in args) {
 			this.pos.x = Math.floor(args.pos.x);
@@ -396,34 +399,34 @@ var GameObj = makeClass({
 		this.setPos(this.pos.x, this.pos.y); //link to tile
 		if ('onInteract' in args) this.onInteract = args.onInteract;
 		if (map) map.objs.push(this);
-	},
-	clearTile : function() {
+	}
+	clearTile() {
 		if ('tile' in this) {
-			var tile = this.tile;
+			let tile = this.tile;
 			if ('objs' in tile) {
-				var objIndex = tile.objs.indexOf(this);
+				let objIndex = tile.objs.indexOf(this);
 				tile.objs.splice(objIndex, 1);
 				if (tile.objs.length == 0) delete tile.objs;
 			}
 			delete this.tile;
 		}
-	},
-	setPos : function(x,y) {
+	}
+	setPos(x,y) {
 		this.clearTile();
 		this.pos.x = x;
 		this.pos.y = y;
 		if (map) {
-			var tile = map.getTile(x,y);
+			let tile = map.getTile(x,y);
 			if (tile) {
 				this.tile = tile;
 				if (!('objs' in tile)) tile.objs = [];
 				tile.objs.push(this);
 			}
 		}
-	},
-	move : function(dx, dy) {
-		var nx = Math.floor(this.pos.x + dx);
-		var ny = Math.floor(this.pos.y + dy);
+	}
+	move(dx, dy) {
+		let nx = Math.floor(this.pos.x + dx);
+		let ny = Math.floor(this.pos.y + dy);
 		if (this == player && 'exitMap' in map) {
 			if (nx < 0 || ny < 0 || nx >= map.size.x || ny >= map.size.y) {
 				setMapRequest = {map:map.exitMap};
@@ -440,12 +443,12 @@ var GameObj = makeClass({
 			if (ny >= map.size.y) ny = map.size.y-1;
 		}
 		
-		var tile = map.getTile(nx,ny);
+		let tile = map.getTile(nx,ny);
 		if (tile) {
-			var blocked = false;
+			let blocked = false;
 			if ('objs' in tile) {
-				for (var i = 0; i < tile.objs.length; i++) {
-					var obj = tile.objs[i];
+				for (let i = 0; i < tile.objs.length; i++) {
+					let obj = tile.objs[i];
 					if (obj != this) {
 						if (obj.solid) {
 							if ('moveIntoObj' in this) this.moveIntoObj(obj);	//only player has this
@@ -467,40 +470,42 @@ var GameObj = makeClass({
 		if ('hasAttribute' in this && this.hasAttribute("Don't Move")) return true;
 
 		this.setPos(nx,ny);
-	},
-	postUpdate : function() {
+	}
+	postUpdate() {
 		this.applyLight();
-	},
-	applyLight : function() {
+	}
+	applyLight() {
 		if (!('fogColor' in map)) return;
 		//update fog of war
-		var lightRadius = this.getLightRadius();
+		let lightRadius = this.getLightRadius();
 		if (lightRadius === undefined) return;
 
 		map.floodFill({
 			pos:this.pos,
 			maxDist:lightRadius,
 			callback:function(tile,dist) {
-				var newLight = (lightRadius-dist)/lightRadius; 
-				var oldLight = 0;
+				let newLight = (lightRadius-dist)/lightRadius; 
+				let oldLight = 0;
 				if ('light' in tile) oldLight = tile.light;
 				tile.light = Math.max(oldLight, newLight);
 				if (tile.solid) return false;
 				if ('objs' in tile) {
-					for (var i = 0; i < tile.objs.length; i++) {
-						var obj = tile.objs[i];
+					for (let i = 0; i < tile.objs.length; i++) {
+						let obj = tile.objs[i];
 						if (obj.blocksLight) return false;
 					}
 				}
 				return true;
 			}
 		});
-	},
-	getLightRadius : function() { return this.lightRadius; },
-	draw : function(ctx) {
+	}
+	getLightRadius() {
+		return this.lightRadius;
+	}
+	draw(ctx) {
 		
-		var dx = this.pos.x - view.center.x;
-		var dy = this.pos.y - view.center.y;
+		let dx = this.pos.x - view.center.x;
+		let dy = this.pos.y - view.center.y;
 		if (map.wrap) {
 			if (dx < -map.size.x/2) dx += map.size.x;
 			if (dx > map.size.x/2) dx -= map.size.x;
@@ -510,8 +515,8 @@ var GameObj = makeClass({
 		dx += view.center.x;
 		dy += view.center.y;
 		
-		var rx = dx;
-		var ry = dy;
+		let rx = dx;
+		let ry = dy;
 		if (rx < view.bbox.min.x || ry < view.bbox.min.y || rx > view.bbox.max.x || ry > view.bbox.max.y) return;
 		rx -= view.bbox.min.x;
 		ry -= view.bbox.min.y;
@@ -519,12 +524,12 @@ var GameObj = makeClass({
 		ry *= tileSize.y;
 	
 		this.drawLocal(ctx, rx, ry);
-	},
-	drawLocal : function(ctx, rx, ry) {
+	}
+	drawLocal(ctx, rx, ry) {
 		if (this.img == undefined) return;
 		if ('angle' in this) {
-			var pivotX = rx + tileSize.x / 2;
-			var pivotY = ry + tileSize.y / 2;
+			let pivotX = rx + tileSize.x / 2;
+			let pivotY = ry + tileSize.y / 2;
 			ctx.save();
 			ctx.translate(pivotX, pivotY);
 			ctx.rotate(this.angle);
@@ -535,53 +540,34 @@ var GameObj = makeClass({
 			ctx.drawImage(this.img, rx, ry, tileSize.x, tileSize.y);
 		}
 	}
-});
+}
 
-var ChestObj = makeClass({
-});
+class ChestObj {
+}
 
-var DeadObj = makeClass({
-	super : GameObj,
-	solid : false,
-	//TODO z-sorting upon draw()
-	url : 'objs/dead.png',
-	init : function(args) {
-		DeadObj.super.apply(this, arguments);
+class DeadObj extends GameObj {
+	constructor(args) {
+		super(args);
 		this.life = randomRange(10, 100);
-	},
-	update : function() {
+	}
+	update() {
 		this.life--;
 		if (this.life <= 0) this.remove = true;
 	}
-});
+}
+DeadObj.prototype.solid = false;
+//TODO z-sorting upon draw()
+DeadObj.prototype.url = 'objs/dead.png';
 
-var BattleObj = makeClass({
-	super : GameObj,
-	solid : true,
-	equipFields : ['rhand', 'lhand', 'body', 'head', 'relic1', 'relic2'],
-
-	hpMax : 1,
-	mpMax : 1,
-	gold : 0,
-	physAttack : 1,
-	physHitChance : 80,
-	physEvade : 20,
-	magicAttack : 1,
-	magicHitChance : 80,
-	magicEvade : 0,
-	inflictChance : 1/4,
-	inflictAttributes : [],
-	attackOffsets : [new vec2(1,0)],
-	damageType : 'bludgeon',
-
-	init : function(args) {
-		BattleObj.super.apply(this, arguments);
+class BattleObj extends GameObj {
+	constructor(args) {
+		super(args);
 		
-		var classItems = this.items;
+		let classItems = this.items;
 		this.items = [];
 		if (classItems) {
-			for (var i = 0; i < classItems.length; i++) {
-				var item = classItems[i];
+			for (let i = 0; i < classItems.length; i++) {
+				let item = classItems[i];
 				if (typeof(item) == 'string') item = itemClasses[item];
 				if ('prototype' in item) item = new item();
 				this.items.push(item);
@@ -593,11 +579,11 @@ var BattleObj = makeClass({
 		this.attributes = [];
 		this.hp = this.stat('hpMax');
 		this.mp = this.stat('mpMax');
-	},
-	stat : function(field) {
-		var value = this[field];
-		var srcInfos = [];
-		var thiz = this;
+	}
+	stat(field) {
+		let value = this[field];
+		let srcInfos = [];
+		let thiz = this;
 		srcInfos = srcInfos.concat(
 			this.equipFields.filter(function(equipField) { 
 				return equipField in thiz;
@@ -610,11 +596,11 @@ var BattleObj = makeClass({
 				return {attribute:true, src:attribute};
 			})
 		);
-		for (var i = 0; i < srcInfos.length; i++) {
-			var srcInfo = srcInfos[i];
-			var src = srcInfo.src;
+		for (let i = 0; i < srcInfos.length; i++) {
+			let srcInfo = srcInfos[i];
+			let src = srcInfo.src;
 			if (field in src) {
-				var srcvalue = src[field];
+				let srcvalue = src[field];
 				if (typeof(value) == 'number') {
 					value += srcvalue;
 				} else if (typeof(value) == 'object' && value.constructor == Array) {
@@ -632,52 +618,52 @@ var BattleObj = makeClass({
 		}
 		//and now that we've accum'd (+) all our stats
 		//now we run through their modifiers (*)
-		var baseValue = value;
-		for (var i = 0; i < srcInfos.length; i++) {
-			var src = srcInfos[i].src;
+		let baseValue = value;
+		for (let i = 0; i < srcInfos.length; i++) {
+			let src = srcInfos[i].src;
 			if (field+'Modify' in src) {
 				value = src[field+'Modify'](value, baseValue, this);
 			}
 		}
 		return value;
-	},
-	getLightRadius : function() { return this.stat('lightRadius'); },
-	setAttribute : function(attrName) {
+	}
+	getLightRadius() { return this.stat('lightRadius'); }
+	setAttribute(attrName) {
 		this.removeAttribute(attrName);
 		new PopupText({msg:attrName, pos:this.pos});
-		var attrClass = attributes[attrName];
+		let attrClass = attributes[attrName];
 		if (attrClass == undefined) {
 			console.log("!! tried to set an unknown attributes", attrName);
 		} else {
 			this.attributes.push(new attrClass(this));
 		}
-	},
-	setAttributes : function(attrNames) {
-		for (var i = 0; i < attrNames.length; i++) {
+	}
+	setAttributes(attrNames) {
+		for (let i = 0; i < attrNames.length; i++) {
 			this.setAttribute(attrNames[i]);
 		}
-	},
+	}
 	//don't call this from within attribute.update. instead just set its '.remove' to true
-	removeAttribute : function(attrName) {
-		for (var i = 0; i < this.attributes.length; i++) {
+	removeAttribute(attrName) {
+		for (let i = 0; i < this.attributes.length; i++) {
 			if (this.attributes[i].name == attrName) {
 				this.attributes.splice(i,1);
 				i--;
 			}
 		}
-	},
-	removeAttributes : function(attrNames) {
-		for (var i = 0; i < attrNames.length; i++) {
+	}
+	removeAttributes(attrNames) {
+		for (let i = 0; i < attrNames.length; i++) {
 			this.removeAttribute(attrNames[i]);
 		}
-	},
-	hasAttribute : function(attrName) {
-		for (var i = 0; i < this.attributes.length; i++) {
+	}
+	hasAttribute(attrName) {
+		for (let i = 0; i < this.attributes.length; i++) {
 			if (this.attributes[i].name == attrName) return true;
 		}
 		return false;
-	},
-	setEquip : function(field, item) {
+	}
+	setEquip(field, item) {
 		if (field in this) {
 			this.items.push(this[field]);
 			delete this[field];
@@ -690,17 +676,17 @@ var BattleObj = makeClass({
 		//now that we've changed fields, make sure hp & mp are within their proper bounds...
 		if (this.hp > this.stat('hpMax')) this.hp = this.stat('hpMax');
 		if (this.mp > this.stat('mpMax')) this.mp = this.stat('mpMax');
-	},
-	canEquip : function(field, item) {
+	}
+	canEquip(field, item) {
 		if ((item.type == 'weapon' || item.type == 'shield') && (field == 'lhand' || field == 'rhand')) return true;
 		if (item.type == 'armor' && field == 'body') return true;
 		if (item.type == 'helm' && field == 'head') return true;
 		if (item.type == 'relic' && (field == 'relic1' || field == 'relic2')) return true;
 		return false;
-	},
-	postUpdate : function() {
-		for (var i = 0; i < this.attributes.length; i++) {
-			var attribute = this.attributes[i];
+	}
+	postUpdate() {
+		for (let i = 0; i < this.attributes.length; i++) {
+			let attribute = this.attributes[i];
 			attribute.update(this);
 			if (attribute.remove) {
 				this.attributes.splice(i,1);
@@ -709,10 +695,10 @@ var BattleObj = makeClass({
 		}
 
 		if ('tile' in this) {
-			var tile = this.tile;
+			let tile = this.tile;
 			if ('objs' in tile) {
-				for (var i = 0; i < tile.objs.length; i++) {
-					var obj = tile.objs[i];
+				for (let i = 0; i < tile.objs.length; i++) {
+					let obj = tile.objs[i];
 					if (obj != this) {
 						if ('onTouch' in obj) obj.onTouch(this);
 					}
@@ -720,37 +706,37 @@ var BattleObj = makeClass({
 			}
 		}
 
-		BattleObj.superProto.postUpdate.apply(this, arguments);
-	},
-	interact : function(dx, dy) {
-		var nx = Math.floor(this.pos.x + dx + map.size.x) % map.size.x;
-		var ny = Math.floor(this.pos.y + dy + map.size.y) % map.size.y;
-		var tile = map.getTile(nx,ny);
+		super.postUpdate();
+	}
+	interact(dx, dy) {
+		let nx = Math.floor(this.pos.x + dx + map.size.x) % map.size.x;
+		let ny = Math.floor(this.pos.y + dy + map.size.y) % map.size.y;
+		let tile = map.getTile(nx,ny);
 		if (tile && 'objs' in tile) {
-			for (var i = 0; i < tile.objs.length; i++) {
-				var obj = tile.objs[i];
+			for (let i = 0; i < tile.objs.length; i++) {
+				let obj = tile.objs[i];
 				if ('onInteract' in obj) {
 					obj.onInteract(this);
 					return;
 				}
 			}
 		}
-	},
-	attack : function(dx, dy) {
-		var thiz = this;
-		var angle = Math.atan2(dy, dx);
-		var physAttack = this.stat('physAttack');
-		var baseDamageType = this.stat('damageType');
-		var attackOffsets = this.stat('attackOffsets');
-		var inflictAttributes = this.stat('inflictAttributes');
-		var pos = new vec2();
-		for (var j = 0; j < attackOffsets.length; j++) {
-			attackOffset = attackOffsets[j];
+	}
+	attack(dx, dy) {
+		let thiz = this;
+		let angle = Math.atan2(dy, dx);
+		let physAttack = this.stat('physAttack');
+		let baseDamageType = this.stat('damageType');
+		let attackOffsets = this.stat('attackOffsets');
+		let inflictAttributes = this.stat('inflictAttributes');
+		let pos = new vec2();
+		for (let j = 0; j < attackOffsets.length; j++) {
+			let attackOffset = attackOffsets[j];
 			//rotate the offset by the dir (cplxmul)
 			pos.x = dx * attackOffset.x - dy * attackOffset.y + this.pos.x;
 			pos.y = dx * attackOffset.y + dy * attackOffset.x + this.pos.y;
 			if (!map.wrapPos(pos)) continue;
-			var damageType = baseDamageType;
+			let damageType = baseDamageType;
 			if ('type' in attackOffset) damageType = attackOffset.type; 
 			switch (damageType) {
 			case 'slash':
@@ -766,18 +752,18 @@ var BattleObj = makeClass({
 				break;
 			}
 
-			var tile = map.tiles[pos.y][pos.x];
+			let tile = map.tiles[pos.y][pos.x];
 			if (tile && 'objs' in tile) {
-				var entsThere = tile.objs.length;
-				for (var i = 0; i < entsThere; i++) {
-					var obj = tile.objs[i];
-					if (obj.isa(BattleObj)) {
+				let entsThere = tile.objs.length;
+				for (let i = 0; i < entsThere; i++) {
+					let obj = tile.objs[i];
+					if (isa(obj, BattleObj)) {
 						if (this.physHitRoll(obj)) {
-							var dmg = -physAttack;
+							let dmg = -physAttack;
 							obj.adjustPoints('hp', dmg, this);
 							if (inflictAttributes.length) {
-								for (var k = 0; k < inflictAttributes.length; k++) {
-									var attr = inflictAttributes[k];
+								for (let k = 0; k < inflictAttributes.length; k++) {
+									let attr = inflictAttributes[k];
 									if (Math.random() < this.inflictChance) {
 										obj.setAttribute(attr);
 									}
@@ -790,26 +776,26 @@ var BattleObj = makeClass({
 				}
 			}
 		}
-	},
-	physHitRoll : function(defender) {
-		var percent = this.stat('physHitChance') - defender.stat('physEvade');
+	}
+	physHitRoll(defender) {
+		let percent = this.stat('physHitChance') - defender.stat('physEvade');
 		return randomRange(1,100) <= percent;
-	},
-	magicHitRoll : function(defender) {
-		var percent = this.stat('magicHitChance') - defender.stat('magicEvade');
+	}
+	magicHitRoll(defender) {
+		let percent = this.stat('magicHitChance') - defender.stat('magicEvade');
 		return randomRange(1,100) <= percent;
-	},
-	adjustPoints : function(field, amount, inflictor) {
-		var color;
+	}
+	adjustPoints(field, amount, inflictor) {
+		let color;
 		if (amount > 0) color = 'rgb(0,127,255)';
-		var msg = amount+' '+field;
+		let msg = amount+' '+field;
 		if (amount >= 0) msg = '+'+msg;
 		new PopupText({msg:msg, pos:this.pos, color:color});
 		this[field] += amount;
 		if (field == 'food') return;
 
-		var fieldMax = field+'Max';
-		var fieldMaxValue = this.stat(fieldMax);
+		let fieldMax = field+'Max';
+		let fieldMaxValue = this.stat(fieldMax);
 		if (this[field] > fieldMaxValue) {
 			this[field] = fieldMaxValue;
 		} else if (this[field] < 0) {
@@ -817,58 +803,59 @@ var BattleObj = makeClass({
 		}
 		if (this.hp == 0) {
 			//don't let monsters take your items/gold when they kill you
-			if (inflictor && inflictor.isa(HeroObj)) {
+			if (inflictor && isa(inflictor, HeroObj)) {
 				if ('gold' in inflictor && 'gold' in this) inflictor.gold += this.gold;
 				if ('items' in inflictor && 'items' in this) inflictor.items = inflictor.items.concat(this.items);
 			}
 			this.die();
 		}
-	},
-	die : function() {
+	}
+	die() {
 		this.remove = true;
 		new DeadObj({pos:this.pos});
 	}
-});
+}
+BattleObj.prototype.solid = true;
+BattleObj.prototype.equipFields = ['rhand', 'lhand', 'body', 'head', 'relic1', 'relic2'];
+BattleObj.prototype.hpMax = 1;
+BattleObj.prototype.mpMax = 1;
+BattleObj.prototype.gold = 0;
+BattleObj.prototype.physAttack = 1;
+BattleObj.prototype.physHitChance = 80;
+BattleObj.prototype.physEvade = 20;
+BattleObj.prototype.magicAttack = 1;
+BattleObj.prototype.magicHitChance = 80;
+BattleObj.prototype.magicEvade = 0;
+BattleObj.prototype.inflictChance = 1/4;
+BattleObj.prototype.inflictAttributes = [];
+BattleObj.prototype.attackOffsets = [new vec2(1,0)];
+BattleObj.prototype.damageType = 'bludgeon';
 
-var HeroObj = makeClass({
-	super : BattleObj,
-	url : 'objs/hero.png',
-	hpMax : 25,
-	mpMax : 25,
-	foodMax : 5000,
-	gold : 0, 
-	nominalTemp : 80,
-	warmth : 28.6,
-	physAttack:1,
-	physHitChance:70,
-	physEvade:10,
-	
-	lightRadius : 10,
-	
-	init : function(args) {
-		HeroObj.super.apply(this, arguments);
+class HeroObj extends BattleObj {
+	constructor(args) {
+		super(args);
 		this.hp = this.hpMax;
 		this.mp = 0;
 		this.food = Math.ceil(this.foodMax/2);
 		this.temp = this.nominalTemp; 
-	},
-	update : function() {
+	}
+	update() {
 		this.food--;
 		if (this.food <= 0) {
 			clientMessage("HUNGRY!!!");
 			this.adjustPoints('hp', -Math.ceil(this.stat('hpMax')/20));
 		} else if (this.food > this.stat('foodMax')) {
 			clientMessage("FATTY FAT FAT!!!");
-			var overweight = this.food - this.stat('foodMax');
+			let overweight = this.food - this.stat('foodMax');
 			if (Math.random() < this.stat('hpMax')/100) {
-				var dmg = overweight/1000;
+				let dmg = overweight/1000;
 				//dmg *= this.stat('hpMax')/20;
 				this.adjustPoints('hp', -Math.ceil(dmg));
 			}
 			this.food -= Math.ceil(overweight * .1);
 		}
 
-		envTemp = map.temp + this.stat('warmth');
+		let envTemp = map.temp + this.stat('warmth');
 		this.temp += (envTemp - this.temp) * .1;
 		if (Math.abs(this.temp - this.nominalTemp) > 50) {
 			if (this.temp > this.nominalTemp) {
@@ -878,25 +865,25 @@ var HeroObj = makeClass({
 			}
 			this.adjustPoints('hp', -Math.ceil(this.stat('hpMax')/20));
 		}
-	},
-	move : function(dx, dy) {
-		if (!HeroObj.superProto.move.apply(this, arguments)) {
-			var tile = map.getTile(this.pos.x, this.pos.y);
+	}
+	move(dx, dy) {
+		if (!super.move(dx, dy)) {
+			let tile = map.getTile(this.pos.x, this.pos.y);
 			if ('playerTouch' in tile) {
 				tile.playerTouch(this);
 			}
 		}
-	},
-	moveIntoObj : function(obj) {
+	}
+	moveIntoObj(obj) {
 		if ('onInteract' in obj) {
 			obj.onInteract(this);
 		} else {
-			if (obj.isa(MonsterObj)) {
+			if (isa(obj, MonsterObj)) {
 				this.attack(obj.pos.x - this.pos.x, obj.pos.y - this.pos.y);
 			}
 		}
-	},
-	die : function() {
+	}
+	die() {
 		//don't call super -- all that does is remove us
 		clientMessage("YOU DIED");
 		setMapRequest = {map:'Helpless Village', dontSavePos:true};
@@ -906,12 +893,23 @@ var HeroObj = makeClass({
 		this.food = Math.ceil(this.foodMax/2);
 		this.temp = this.nominalTemp; 
 		this.gold = Math.floor(this.gold / 2);
-		for (var i = 0; i < maps.length; i++) {
-			var map = maps[i];
+		for (let i = 0; i < maps.length; i++) {
+			let map = maps[i];
 			delete map.lastPlayerStart;
 		}
 	}
-});
+}
+HeroObj.prototype.url = 'objs/hero.png';
+HeroObj.prototype.hpMax = 25;
+HeroObj.prototype.mpMax = 25;
+HeroObj.prototype.foodMax = 5000;
+HeroObj.prototype.gold = 0; 
+HeroObj.prototype.nominalTemp = 80;
+HeroObj.prototype.warmth = 28.6;
+HeroObj.prototype.physAttack=1;
+HeroObj.prototype.physHitChance=70;
+HeroObj.prototype.physEvade=10;
+HeroObj.prototype.lightRadius = 10;
 
 /*
 moveent behaviors:
@@ -920,28 +918,26 @@ distToHostile : how close player can get before a monster turns hostile
 retreat : runs away from player
 distToRetreat : how far a player can get for a monster to stop running
 */
-var AIObj = makeClass({
-	super : BattleObj,
-	url : 'objs/orc.png',
-	update : function() {
+class AIObj extends BattleObj {
+	update() {
 		if (!player) return;
 		
-		var acted = this.performAction();	//either act or move
+		let acted = this.performAction();	//either act or move
 
 		//now attempt to move:
 		if (acted) return;
 		
-		var deltax = player.pos.x - this.pos.x;
-		var deltay = player.pos.y - this.pos.y;
+		let deltax = player.pos.x - this.pos.x;
+		let deltay = player.pos.y - this.pos.y;
 		if (map.wrap) {
 			if (deltax < -map.size.x/2) deltax += map.size.x;
 			if (deltax > map.size.x/2) deltax -= map.size.x;
 			if (deltay < -map.size.y/2) deltay += map.size.y;
 			if (deltay > map.size.y/2) deltay -= map.size.y;
 		}
-		var absdeltax = Math.abs(deltax);
-		var absdeltay = Math.abs(deltay);
-		var playerDist = absdeltax + absdeltay; 
+		let absdeltax = Math.abs(deltax);
+		let absdeltay = Math.abs(deltay);
+		let playerDist = absdeltax + absdeltay; 
 	
 		if (typeof(this.distToHostile) == 'number') {
 			if (playerDist <= this.distToHostile) {
@@ -959,7 +955,7 @@ var AIObj = makeClass({
 			}
 		}
 	
-		var dx, dy;
+		let dx, dy;
 		if (!(this.hostile || this.retreat || this.wander)) return;
 		
 		if (this.retreat) {
@@ -971,18 +967,18 @@ var AIObj = makeClass({
 			dy = Math.sign(deltay);
 			/**/
 			/* pathfind! * /
-			var path = map.pathfind(this.pos, player.pos);
+			let path = map.pathfind(this.pos, player.pos);
 			if (path && path.length > 1) {
-				var nextstep = path[1];
-				var dx = nextstep.x - this.pos.x;
-				var dy = nextstep.y - this.pos.y;
+				let nextstep = path[1];
+				let dx = nextstep.x - this.pos.x;
+				let dy = nextstep.y - this.pos.y;
 				this.move(dx, dy);
 			}
 			return;
 			/**/
 		} else if (this.wander) {
 			if (Math.random() > .2) return;
-			var dir = pickRandom(dirs).offset;
+			let dir = pickRandom(dirs).offset;
 			dx = dir.x;
 			dy = dir.y;
 		}
@@ -996,69 +992,63 @@ var AIObj = makeClass({
 				dy = 0;	//try the other dir, move on to the rotate-and-test
 			}
 		}
-		//for (var i = 0; i < 4; i++) {	
-			var result = this.move(dx, dy);
+		//for (let i = 0; i < 4; i++) {	
+			let result = this.move(dx, dy);
 		//	if (!result) break;
-		//	var tmp = dx;
+		//	let tmp = dx;
 		//	dx = -dy;
 		//	dy = tmp;
 		//}
-	},
-	performAction : function() {
+	}
+	performAction() {
 		//do attack as part of move (so we can keep tabs on who acted - no multiple actions!)
 		if (this.hostile && distL1(player.pos, this.pos) <= 1) {
 			this.attack(player.pos.x - this.pos.x, player.pos.y - this.pos.y);
 			return true;
 		}
 	}
-});
+}
+AIObj.prototype.url = 'objs/orc.png';
 
-var MonsterObj = makeClass({
-	super:AIObj,
+class MonsterObj extends AIObj {
 //	wander:true,
 //	distToHostile:10
-	hostile:true
-});
+}
+MonsterObj.prototype.hostile=true;
 
-var OrcObj = makeClass({
-	super:MonsterObj, 
-	hpMax:1, 
-	gold:1,
-	physEvade:10,
-	damageType:'pierce'
-});
+class OrcObj extends MonsterObj {
+}
+OrcObj.prototype.hpMax=1; 
+OrcObj.prototype.gold=1;
+OrcObj.prototype.physEvade=10;
+OrcObj.prototype.damageType='pierce';
 
-var ThiefObj = makeClass({
-	super:MonsterObj,
-	url:'objs/thief.png',
-	hpMax:2,
-	physEvade:30,
-	gold:10,
-	performAction : function() {
+class ThiefObj extends MonsterObj {
+	performAction() {
 		if (this.retreat) return;
 
 		if (distL1(this.pos, player.pos) <= 1 
 		&& randomRange(1,5) == 5)
 		{
 			if (player.items.length && this.physHitRoll(player)) {
-				var item = player.items.splice(randomRange(0, player.items.length-1), 1)[0];
+				let item = player.items.splice(randomRange(0, player.items.length-1), 1)[0];
 				this.items.push(item);
 				clientMessage('Thief Stole '+item.name+'!');
 				this.retreat = true;
 			}
 			return true;
 		} else {
-			return ThiefObj.superProto.performAction.apply(this, arguments);
+			return super.performAction();
 		}
 	}
-});
+}
+ThiefObj.prototype.url='objs/thief.png';
+ThiefObj.prototype.hpMax=2;
+ThiefObj.prototype.physEvade=30;
+ThiefObj.prototype.gold=10;
 
-var TroggleObj = makeClass({
-	super:MonsterObj,
-	url:'objs/imp.png',
-	hpMax:4,
-	gold:4,
-	performAction : function() {
+class TroggleObj extends MonsterObj {
+	performAction() {
 		if (distL1(this.pos, player.pos) <= 3
 		&& randomRange(1,5) == 5)
 		{
@@ -1067,116 +1057,107 @@ var TroggleObj = makeClass({
 				player.setAttribute("Don't Move");
 			}
 		} else {
-			return TroggleObj.superProto.performAction.apply(this, arguments); 
+			return super.performAction(); 
 		}
 	}
-});
+}
+TroggleObj.prototype.url='objs/imp.png';
+TroggleObj.prototype.hpMax=4;
+TroggleObj.prototype.gold=4;
 
-var FighterObj = makeClass({
-	super:MonsterObj,
-	url:'objs/fighter.png',
-	hpMax:8,
-	gold:8,
-	physAttack:3,
-	physHitChance:80
-});
 
-var SnakeObj = makeClass({
-	super:MonsterObj,
-	url:'objs/snake.png',
-	hpMax:1,
-	gold:2,
-	physEvade:30,
-	inflictAttributes:['Poison'],
-	damageType:'pierce'
-});
+class FighterObj extends MonsterObj {}
+FighterObj.prototype.url='objs/fighter.png';
+FighterObj.prototype.hpMax=8;
+FighterObj.prototype.gold=8;
+FighterObj.prototype.physAttack=3;
+FighterObj.prototype.physHitChance=80;
 
-var FishObj = makeClass({
-	super:MonsterObj,
-	url:'objs/fish.png',
-	hpMax:1,
-	items:['Fish Fillet', 'Fish Fillet', 'Fish Fillet'],
-	physEvade:50,
-	wander:true,
-	distToHostile:undefined,
-	movesInWater:true
-});
+class SnakeObj extends MonsterObj {
+}
+SnakeObj.prototype.url='objs/snake.png';
+SnakeObj.prototype.hpMax=1;
+SnakeObj.prototype.gold=2;
+SnakeObj.prototype.physEvade=30;
+SnakeObj.prototype.inflictAttributes=['Poison'];
+SnakeObj.prototype.damageType='pierce';
 
-var DeerObj = makeClass({
-	super:MonsterObj,
-	url:'objs/deer.png',
-	hpMax:1,
-	items:['Venison'],	//TODO prevent steal.  have a 'drop on kill' item instead
-	physEvade:50,
-	wander:true,
-	distToHostile:undefined,
-	distToRetreat:10
-});
+class FishObj extends MonsterObj {
+}
+FishObj.prototype.url='objs/fish.png';
+FishObj.prototype.hpMax=1;
+FishObj.prototype.items=['Fish Fillet', 'Fish Fillet', 'Fish Fillet'];
+FishObj.prototype.physEvade=50;
+FishObj.prototype.wander=true;
+FishObj.prototype.distToHostile=undefined;
+FishObj.prototype.movesInWater=true;
 
-var SeaMonsterObj = makeClass({
-	super:MonsterObj,
-	url:'objs/seamonster.png',
-	hpMax:20,
-	gold:100,
-	physAttack:5,
-	physEvade:50,
-	movesInWater:true
-});
+class DeerObj extends MonsterObj {}
+DeerObj.prototype.url='objs/deer.png';
+DeerObj.prototype.hpMax=1;
+DeerObj.prototype.items=['Venison'];	//TODO prevent steal.  have a 'drop on kill' item instead
+DeerObj.prototype.physEvade=50;
+DeerObj.prototype.wander=true;
+DeerObj.prototype.distToHostile=undefined;
+DeerObj.prototype.distToRetreat=10;
 
-var EnemyBoatObj = makeClass({
-	super:MonsterObj,
-	url:'objs/boat.png',
-	hpMax:10,
-	gold:50,
-	physAttack:5,
-	physEvade:30,
-	movesInWater:true
-});
+class SeaMonsterObj extends MonsterObj {}
+SeaMonsterObj.prototype.url='objs/seamonster.png';
+SeaMonsterObj.prototype.hpMax=20;
+SeaMonsterObj.prototype.gold=100;
+SeaMonsterObj.prototype.physAttack=5;
+SeaMonsterObj.prototype.physEvade=50;
+SeaMonsterObj.prototype.movesInWater=true;
+
+class EnemyBoatObj extends MonsterObj {}
+EnemyBoatObj.prototype.url='objs/boat.png';
+EnemyBoatObj.prototype.hpMax=10;
+EnemyBoatObj.prototype.gold=50;
+EnemyBoatObj.prototype.physAttack=5;
+EnemyBoatObj.prototype.physEvade=30;
+EnemyBoatObj.prototype.movesInWater=true;
 
 /*
 TODO..
 DeerObj for hunting
 BearObj for hunting
 ultima classics:
-var DevilObj = makeClass({super:MonsterObj, hpMax:32, gold:32});
-var WizardObj = makeClass({super:MonsterObj, hpMax:64, gold:64});
-var BalrogObj = makeClass({super:MonsterObj, hpMax:128, gold:128});
+let DevilObj = makeClass({super:MonsterObj, hpMax:32, gold:32});
+let WizardObj = makeClass({super:MonsterObj, hpMax:64, gold:64});
+let BalrogObj = makeClass({super:MonsterObj, hpMax:128, gold:128});
 
 things you can ride:
 Boat, Horse, Plane, Rocket
 */
 
-var TownNPCObj = makeClass({
-	super : AIObj,
-	onInteract : function(player) {
+class TownNPCObj extends AIObj {
+	onInteract(player) {
 		if (this.msg) {
 			clientMessage(this.msg);
 		}
-	},
-	adjustPoints : function() {
+	}
+	adjustPoints() {
 		if (arguments.length > 2 && arguments[2] == player) {
-			for (var i = 0; i < map.objs.length; i++) {
-				var obj = map.objs[i];
-				if (obj.isa(TownNPCObj)) {
-					if (obj.isa(GuardObj)) obj.hostile = true;
+			for (let i = 0; i < map.objs.length; i++) {
+				let obj = map.objs[i];
+				if (isa(obj, TownNPCObj)) {
+					if (isa(obj, GuardObj)) obj.hostile = true;
 					else obj.retreat = true;
 				}
 			}
 		}
-		TownNPCObj.superProto.adjustPoints.apply(this, arguments);
+		super.adjustPoints();
 	}
-});
+}
 
-var HelperObj = makeClass({
-	super : AIObj,
-	solid : false,
-	moveTowards : function(destX, destY) {
-		var deltax = destX - this.pos.x;
-		var deltay = destY - this.pos.y;
-		var absdeltax = Math.abs(deltax);
-		var absdeltay = Math.abs(deltay);
-		var dx = Math.sign(deltax);
-		var dy = Math.sign(deltay);
+class HelperObj extends AIObj {
+	moveTowards(destX, destY) {
+		let deltax = destX - this.pos.x;
+		let deltay = destY - this.pos.y;
+		let absdeltax = Math.abs(deltax);
+		let absdeltay = Math.abs(deltay);
+		let dx = Math.sign(deltax);
+		let dy = Math.sign(deltay);
 		if (dx && dy) {
 			if (absdeltax > absdeltay) {
 				if (!this.move(dx, 0)) return;
@@ -1186,9 +1167,9 @@ var HelperObj = makeClass({
 				dy = 0;	//try the other dir, move on to the rotate-and-test
 			}
 		}
-		var result = this.move(dx, dy);
-	},
-	update : function() {
+		let result = this.move(dx, dy);
+	}
+	update() {
 		if (this.target) {
 			if (this.target.hp <= 0) {
 				this.target = undefined;
@@ -1207,14 +1188,14 @@ var HelperObj = makeClass({
 			//move towards the player
 			if (player) this.moveTowards(player.pos.x + randomRange(-5,5), player.pos.y + randomRange(-5,5));
 			//and look for enemies while we go
-			var searchRadius = 5;
-			for (var y = this.pos.y - searchRadius; y <= this.pos.y + searchRadius; y++) {
-				for (var x = this.pos.x - searchRadius; x <= this.pos.x + searchRadius; x++) {
-					var tile = map.getTile(x,y);
+			let searchRadius = 5;
+			for (let y = this.pos.y - searchRadius; y <= this.pos.y + searchRadius; y++) {
+				for (let x = this.pos.x - searchRadius; x <= this.pos.x + searchRadius; x++) {
+					let tile = map.getTile(x,y);
 					if (tile && 'objs' in tile) {
-						for (var i = 0; i < tile.objs.length; i++) {
-							var obj = tile.objs[i];
-							if (obj.isa(MonsterObj) && obj.hostile) {
+						for (let i = 0; i < tile.objs.length; i++) {
+							let obj = tile.objs[i];
+							if (isa(obj, MonsterObj) && obj.hostile) {
 								this.target = obj;
 							}
 						}
@@ -1223,25 +1204,21 @@ var HelperObj = makeClass({
 			}
 		}
 	}
-});
+}
+HelperObj.prototype.solid = false;
 
-var GuardObj = makeClass({
-	super:TownNPCObj,
-	url:'objs/fighter.png',
-	msg:'Stay in school!',
-	hpMax:100,
-	gold:100,
-	physAttack:10,
-	physHitChance:100,
-	physEvade:60
-});
+class GuardObj extends TownNPCObj {}
+GuardObj.prototype.url='objs/fighter.png';
+GuardObj.prototype.msg='Stay in school!';
+GuardObj.prototype.hpMax=100;
+GuardObj.prototype.gold=100;
+GuardObj.prototype.physAttack=10;
+GuardObj.prototype.physHitChance=100;
+GuardObj.prototype.physEvade=60;
 
-var MerchantObj = makeClass({
-	super : TownNPCObj,
-	url : 'objs/merchant.png',
-	hpMax : 10,
-	init : function(args) {
-		MerchantObj.super.apply(this, arguments);
+class MerchantObj extends TownNPCObj {
+	constructor(args) {
+		super(args);
 		if ('store' in args && args.store) {
 			this.store = args.store;
 			if (!('itemClasses' in args)) throw "store needs itemClasses";
@@ -1249,10 +1226,10 @@ var MerchantObj = makeClass({
 			
 			//merchants respawn every time you walk in the town (in case you kill them)
 			//so upon respawn, regen some new items based on the player's gold
-			var items = [];
+			let items = [];
 
-			for (var i = 0; i < 100; i++) {
-				var itemClass = pickRandom(this.itemClasses);
+			for (let i = 0; i < 100; i++) {
+				let itemClass = pickRandom(this.itemClasses);
 				items.push(new itemClass());
 			}
 
@@ -1260,27 +1237,27 @@ var MerchantObj = makeClass({
 				return Math.sign(Math.abs(itemA.cost - player.gold) - Math.abs(itemB.cost - player.gold));
 			});
 			
-			var numItems = randomRange(10,20);
-			for (var i = 0; i < numItems; i++) {
+			let numItems = randomRange(10,20);
+			for (let i = 0; i < numItems; i++) {
 				this.items.push(items[i]);
 			}
 		}
 		if ('msg' in args) this.msg = args.msg;
-	},
-	onInteract : function(player) {
-		MerchantObj.superProto.onInteract.apply(this, arguments);
+	}
+	onInteract(player) {
+		super.onInteract(player);
 		if (this.store) {
-			var thiz = this;
-			var buySellPrompt = new ClientPrompt(['Buy', 'Sell'], function(cmd, index) {
+			let thiz = this;
+			let buySellPrompt = new ClientPrompt(['Buy', 'Sell'], function(cmd, index) {
 				if (cmd == 'Buy') {
-					var buyOptions = thiz.items.map(function(item, index) {
+					let buyOptions = thiz.items.map(function(item, index) {
 						return item.name+" ("+item.cost+" GP)";
 					});
 					if (buyOptions.length == 0) {
 						clientMessage("I have nothing to sell you!");
 					} else {
-						var buyPrompt = new ClientPrompt(buyOptions, function(cmd, index) {
-							var item = thiz.items[index];
+						let buyPrompt = new ClientPrompt(buyOptions, function(cmd, index) {
+							let item = thiz.items[index];
 							//TODO 'how many?'
 							if (player.gold >= item.cost) {
 								player.gold -= item.cost;
@@ -1290,29 +1267,29 @@ var MerchantObj = makeClass({
 								clientMessage("You can't afford that!");
 							}
 						}, function(cmd, index) {
-							var item = thiz.items[index];
+							let item = thiz.items[index];
 							possibleEquipItem = item;
-							if (item.isa(EquipItem)) {
-								if (item.isa(WeaponItem)) possibleEquipField = 'rhand';
-								if (item.isa(ShieldItem)) possibleEquipField = 'lhand';
-								if (item.isa(ArmorItem)) possibleEquipField = 'body';
-								if (item.isa(HelmItem)) possibleEquipField = 'head';
-								if (item.isa(RelicItem)) possibleEquipField = 'relic2';
+							if (isa(item, EquipItem)) {
+								if (isa(item, WeaponItem)) possibleEquipField = 'rhand';
+								if (isa(item, ShieldItem)) possibleEquipField = 'lhand';
+								if (isa(item, ArmorItem)) possibleEquipField = 'body';
+								if (isa(item, HelmItem)) possibleEquipField = 'head';
+								if (isa(item, RelicItem)) possibleEquipField = 'relic2';
 							}
 						}, function() {
 							possibleEquipField = undefined;
 						});
 					}
 				} else if (cmd == 'Sell') {
-					var sellScale = .5;
-					var sellOptions = player.items.map(function(item, index) {
+					let sellScale = .5;
+					let sellOptions = player.items.map(function(item, index) {
 						return item.name+" ("+Math.ceil(item.cost * sellScale)+" GP)";
 					});
 					if (sellOptions.length == 0) {
 						clientMessage("You have nothing to sell me!");
 					} else {
-						var sellPrompt = new ClientPrompt(sellOptions, function(cmd, index) {
-							var item = player.items[index];
+						let sellPrompt = new ClientPrompt(sellOptions, function(cmd, index) {
+							let item = player.items[index];
 							//TODO howmany?
 							player.gold += Math.ceil(item.cost * sellScale);
 							player.items.splice(index, 1);
@@ -1324,75 +1301,77 @@ var MerchantObj = makeClass({
 			});
 		}
 	}
-});
+}
+MerchantObj.prototype.url = 'objs/merchant.png';
+MerchantObj.prototype.hpMax = 10;
 
-var WarpObj = makeClass({
-	super : GameObj,
-	solid : true,
-	init : function(args) {
-		WarpObj.super.apply(this, arguments);
+class WarpObj extends GameObj {
+	constructor(args) {
+		super(args);
 		this.destMap = args.destMap;
 		if ('destPos' in args) this.destPos = args.destPos;
-	},
-	onInteract : function(player) {
+	}
+	onInteract(player) {
 		setMapRequest = {map:this.destMap};
 		if ('destPos' in this) setMapRequest.pos = this.destPos;
 	}
-});
+}
+WarpObj.prototype.solid = true;
 
-var TownObj = makeClass({super:WarpObj, url:'objs/town.png'});
-var UpStairsObj = makeClass({super:WarpObj, url:'objs/upstairs.png'});
-var DownStairsObj = makeClass({super:WarpObj, url:'objs/downstairs.png'});
+class TownObj extends WarpObj {}
+TownObj.prototype.url = 'objs/town.png';
 
-var FireWallObj = makeClass({
-	super : GameObj,
-	url : 'objs/firewall.png',
-	lightRadius : 10,
-	init : function(args) {
-		FireWallObj.super.apply(this, arguments);
+class UpStairsObj extends WarpObj {}
+UpStairsObj.prototype.url = 'objs/upstairs.png';
+
+class DownStairsObj extends WarpObj {}
+DownStairsObj.prototype.url = 'objs/downstairs.png';
+
+class FireWallObj extends GameObj {
+	constructor(args) {
+		super(args);
 		this.life = randomRange(10,100);
 		this.caster = args.caster;
-	},
-	getLightRadius : function() {
+	}
+	getLightRadius() {
 		return (Math.random() * .5 + .5) * this.lightRadius;
-	},
-	update : function() {
+	}
+	update() {
 		this.life--;
 		if (this.life <= 0) this.remove = true;
-	},
-	onTouch : function(other) {
-		if (other.isa(BattleObj)) {
+	}
+	onTouch(other) {
+		if (isa(other, BattleObj)) {
 			spells.Fire.useOnTarget(this.caster, other);
 		}
 	}
-});
+}
+FireWallObj.prototype.url = 'objs/firewall.png';
+FireWallObj.prototype.lightRadius = 10;
 
-var FriendlyFrogObj = makeClass({
-	super : HelperObj,
-	url : 'objs/frog.png',
-	init : function(args) {
-		FriendlyFrogObj.super.apply(this, arguments);
+class FriendlyFrogObj extends HelperObj {
+	constructor(args) {
+		super(args);
 	}
-});
+}
+FriendlyFrogObj.prototype.url = 'objs/frog.png';
 
-var FriendlySnakeObj = makeClass({
-	super : HelperObj,
-	url : 'objs/snake.png',
-	hpMax : 1,
-	physEvade : 30,
-	inflictAttributes : ['Poison'],
-	damageType : 'pierce',
-	init : function(args) {
-		FriendlySnakeObj.super.apply(this, arguments);
+class FriendlySnakeObj extends HelperObj {
+	constructor(args) {
+		super(args);
 	}
-});
+}
+FriendlySnakeObj.prototype.url = 'objs/snake.png';
+FriendlySnakeObj.prototype.hpMax = 1;
+FriendlySnakeObj.prototype.physEvade = 30;
+FriendlySnakeObj.prototype.inflictAttributes = ['Poison'];
+FriendlySnakeObj.prototype.damageType = 'pierce';
 
-var PopupObj = makeClass({
-	super : GameObj,
-	update : function() { 
+class PopupObj extends GameObj {
+	update() { 
 		this.remove = true;
 	}
-});
+}
 
 /*
 args:
@@ -1405,15 +1384,15 @@ args:
 	y
 */
 function drawOutlineText(args) {
-	var ctx = args.ctx;
-	var text = args.text;
-	var outlineSize = args.outlineSize;
-	var posX = args.x;
-	var posY = args.y;
+	let ctx = args.ctx;
+	let text = args.text;
+	let outlineSize = args.outlineSize;
+	let posX = args.x;
+	let posY = args.y;
 	ctx.save();
 	ctx.fillStyle = args.outlineColor;
-	for (var x = -1; x <= 1; x++) {
-		for (var y = -1; y <= 1; y++) {
+	for (let x = -1; x <= 1; x++) {
+		for (let y = -1; y <= 1; y++) {
 			ctx.fillText(text, posX + x * outlineSize, posY + y * outlineSize);
 		}
 	}
@@ -1422,15 +1401,13 @@ function drawOutlineText(args) {
 	ctx.restore();
 }
 
-var PopupText = makeClass({
-	super : PopupObj,
-	color : 'rgb(255,0,0)',
-	init : function(args) {
-		PopupText.super.apply(this, arguments);
+class PopupText extends PopupObj {
+	constructor(args) {
+		super(args);
 		this.msg = args.msg;
 		if (args.color) this.color = args.color;
-	},
-	drawLocal : function(ctx, rx, ry) {
+	}
+	drawLocal(ctx, rx, ry) {
 		ctx.save();
 		ctx.fillStyle = this.color; 
 		ctx.globalAlpha = .35;
@@ -1441,13 +1418,13 @@ var PopupText = makeClass({
 		ctx.restore();
 		
 		ctx.save();
-		var fontSize = Math.ceil(tileSize.x/2);
+		let fontSize = Math.ceil(tileSize.x/2);
 		ctx.font = fontSize+'px sans-serif';
 		//ctx.fillStyle = this.color;
-		var msgs = this.msg.split(' ');
-		var y = ry + fontSize - 3;
-		for (var i = 0; i < msgs.length; i++) {
-			var length = ctx.measureText(msgs[i]).width;
+		let msgs = this.msg.split(' ');
+		let y = ry + fontSize - 3;
+		for (let i = 0; i < msgs.length; i++) {
+			let length = ctx.measureText(msgs[i]).width;
 			//ctx.fillText(msgs[i], rx + tileSize.x/2 - length/2, y);
 			drawOutlineText({
 				ctx:ctx,
@@ -1462,43 +1439,45 @@ var PopupText = makeClass({
 		}
 		ctx.restore();
 	}
-});
+}
+PopupText.prototype.color = 'rgb(255,0,0)';
 
 //don't convert classes to this too hastily without making sure their image is precached
 //I'm using this with Spell.use() and putting all spells.url's in the image precache
-var PopupSpellIcon = makeClass({
-	super:PopupObj,
-	init : function(args) {
-		PopupSpellIcon.super.apply(this, arguments);
+class PopupSpellIcon extends PopupObj {
+	constructor(args) {
+		super(args);
 		this.img = args.img; 
 	}
-});
+}
 
-var PopupSlashAttack = makeClass({super:PopupObj, url:'objs/damage-slash.png'});
-var PopupPierceAttack = makeClass({super:PopupObj, url:'objs/damage-pierce.png'});
-var PopupBludgeonAttack = makeClass({super:PopupObj, url:'objs/damage-bludgeon.png'});
+class PopupSlashAttack extends PopupObj {}
+PopupSlashAttack.prototype.url='objs/damage-slash.png';
 
-var DoorObj = makeClass({
-	super:GameObj,
-	url:'objs/door.png',
-	solid:true,
-	blocksLight:true,
-	onInteract:function(player) {
+class PopupPierceAttack extends PopupObj {}
+PopupPierceAttack.prototype.url='objs/damage-pierce.png';
+
+class PopupBludgeonAttack extends PopupObj {}
+PopupBludgeonAttack.prototype.url='objs/damage-bludgeon.png';
+
+class DoorObj extends GameObj {
+	onInteract(player) {
 		this.remove = true;
 	}
-});
+}
+DoorObj.prototype.url='objs/door.png';
+DoorObj.prototype.solid=true;
+DoorObj.prototype.blocksLight=true;
 
-var TreasureObj = makeClass({
-	super:GameObj,
-	url:'objs/treasure.png',
-	solid:true,
-	onInteract:function(player) {
-		var itemClass = pickRandom(itemClasses);
+
+class TreasureObj extends GameObj {
+	onInteract(player) {
+		let itemClass = pickRandom(itemClasses);
 
 		//store trick: spawn 100, pick the closest to the player's gp level
-		var item = new itemClass();
-		for (var i = 0; i < 100; i++) {
-			var newItem = new itemClass();
+		let item = new itemClass();
+		for (let i = 0; i < 100; i++) {
+			let newItem = new itemClass();
 			if (Math.abs(newItem.cost - player.gold) <= Math.abs(item.cost - player.gold)) {
 				item = newItem;
 			}
@@ -1509,19 +1488,36 @@ var TreasureObj = makeClass({
 
 		this.remove = true;
 	}
-});
+}
+TreasureObj.prototype.url='objs/treasure.png';
+TreasureObj.prototype.solid=true;
 
-var SignObj = makeClass({super:GameObj, solid:true});
-var WeaponSign = makeClass({super:SignObj, url:'objs/shop-weapon-sign.png'});
-var ArmorSign = makeClass({super:SignObj, url:'objs/shop-armor-sign.png'});
-var FoodSign = makeClass({super:SignObj, url:'objs/shop-food-sign.png'});
-var ItemSign = makeClass({super:SignObj, url:'objs/shop-item-sign.png'});
-var RelicSign = makeClass({super:SignObj, url:'objs/shop-relic-sign.png'});
-var SpellSign = makeClass({super:SignObj, url:'objs/shop-spell-sign.png'});
-var HealSign = makeClass({super:SignObj, url:'objs/shop-heal-sign.png'});
+class SignObj extends GameObj {}
+SignObj.prototype.solid=true;
+
+class WeaponSign extends SignObj {}
+WeaponSign.prototype.url='objs/shop-weapon-sign.png';
+
+class ArmorSign extends SignObj {}
+ArmorSign.prototype.url='objs/shop-armor-sign.png';
+
+class FoodSign extends SignObj {}
+FoodSign.prototype.url='objs/shop-food-sign.png';
+
+class ItemSign extends SignObj {}
+ItemSign.prototype.url='objs/shop-item-sign.png';
+
+class RelicSign extends SignObj {}
+RelicSign.prototype.url='objs/shop-relic-sign.png';
+
+class SpellSign extends SignObj {}
+SpellSign.prototype.url='objs/shop-spell-sign.png';
+
+class HealSign extends SignObj {}
+HealSign.prototype.url='objs/shop-heal-sign.png';
 
 //a list of all types that need graphics to be cached
-var objTypes = [
+let objTypes = [
 	//hero
 	HeroObj,
 	//monsters
@@ -1547,19 +1543,19 @@ var objTypes = [
 
 // attributes
 
-var Attribute = makeClass({
-	init : function(target) {
+class Attribute {
+	constructor(target) {
 		if ('lifeRange' in this) this.life = randomRange.apply(undefined, this.lifeRange);
-	},
-	update : function(target) {
+	}
+	update(target) {
 		if ('life' in this) {
 			this.life--;
 			if (this.life <= 0) this.remove = true;
 		}
 	}
-});
+}
 
-var attributes = [
+let attributes = [
 	makeClass({
 		super : Attribute,
 		name : "Don't Move",
@@ -1569,28 +1565,32 @@ var attributes = [
 		super : Attribute,
 		name : "Poison",
 		lifeRange : [10,20],
-		update : function(target) {
+		update(target) {
 			target.adjustPoints('hp', -Math.ceil(target.stat('hpMax')/50));
+			// doesn't work for functions passed into classes and added to their prototypes explicitly?
+			// c'mon ES6 ...
+			//super.update(target);
 			Attribute.prototype.update.apply(this, arguments);
-		}
+		},
 	}),
 	makeClass({
 		super : Attribute,
 		name : "Regen",
 		lifeRange : [10,20],
-		update : function(target) {
+		update(target) {
 			target.adjustPoints('hp', Math.ceil(target.stat('hpMax')/50));
+			//super.update(target);
 			Attribute.prototype.update.apply(this, arguments);
-		}
+		},
 	}),
 	makeClass({
 		super : Attribute,
 		name : "Light",
 		lightRadius : 10,
-		life : 100
-	})
+		life : 100,
+	}),
 ];
-for (var i = 0; i < attributes.length; i++) {
+for (let i = 0; i < attributes.length; i++) {
 	attributes[attributes[i].prototype.name] = attributes[i];
 }
 
@@ -1604,11 +1604,11 @@ castingInfo:
 	dontCost = override costing mp (for scrolls)
 	onCast = what to do upon casting it (for scrolls)
 */
-var castingInfo;
+let castingInfo;
 
 function spellTargetKeyCallback(key, event) {
-	var nx = castingInfo.target.x;
-	var ny = castingInfo.target.y;
+	let nx = castingInfo.target.x;
+	let ny = castingInfo.target.y;
 	switch (key) {
 	case 'left': nx--; break;	//left
 	case 'up': ny--; break; //up
@@ -1632,27 +1632,25 @@ function spellTargetKeyCallback(key, event) {
 	return false;
 }
 
-var Spell = makeClass({
-	inflictAttributes : [],
-	inflictChance : 1/4,
-	clientUse : function(args) {
+class Spell {
+	clientUse(args) {
 		//prompt the user for a target location
 		castingInfo = {};
 		castingInfo.spell = this;
 		
 		castingInfo.target = new vec2(player.pos);
 		if (!this.targetSelf) {
-			var bestDist = this.range + 1;
-			for (var y = player.pos.y - this.range; y <= player.pos.y + this.range; y++) {
-				for (var x = player.pos.x - this.range; x <= player.pos.x + this.range; x++) {
-					var tilePos = new vec2(x,y);
-					var tileDist = distL1(player.pos, tilePos);
+			let bestDist = this.range + 1;
+			for (let y = player.pos.y - this.range; y <= player.pos.y + this.range; y++) {
+				for (let x = player.pos.x - this.range; x <= player.pos.x + this.range; x++) {
+					let tilePos = new vec2(x,y);
+					let tileDist = distL1(player.pos, tilePos);
 					if (tileDist <= this.range) {
-						var tile = map.getTile(x,y);
+						let tile = map.getTile(x,y);
 						if (tile && 'objs' in tile) {
-							for (var i = 0; i < tile.objs.length; i++) {
-								var obj = tile.objs[i];
-								if (obj.isa(BattleObj) && obj.hostile) {
+							for (let i = 0; i < tile.objs.length; i++) {
+								let obj = tile.objs[i];
+								if (isa(obj, BattleObj) && obj.hostile) {
 									if (tileDist < bestDist) {
 										bestDist = tileDist;
 										castingInfo.target = tilePos;
@@ -1665,31 +1663,31 @@ var Spell = makeClass({
 			}
 		}
 		
-		for (var k in args) {
+		for (let k in args) {
 			castingInfo[k] = args[k];
 		}
 		clientMessage("choose target for spell "+castingInfo.spell.name);
 		keyCallback	= spellTargetKeyCallback;
-	},
-	canPayFor : function(caster) {
+	}
+	canPayFor(caster) {
 		if (caster == player && castingInfo && castingInfo.dontCost) return true;
 		return caster.mp >= this.cost;
-	},
-	payFor : function(caster) {
+	}
+	payFor(caster) {
 		if (caster == player && castingInfo && castingInfo.dontCost) return;
 		caster.mp -= this.cost;
-	},
-	use : function(caster, pos) {
+	}
+	use(caster, pos) {
 		if (!this.canPayFor(caster)) {
 			new PopupText({msg:'NO MP!', pos:caster.pos});
 			return;
 		}
 		this.payFor(caster);
 	
-		for (var y = pos.y - this.area; y <= pos.y + this.area; y++) {
-			for (var x = pos.x - this.area; x <= pos.x + this.area; x++) {
+		for (let y = pos.y - this.area; y <= pos.y + this.area; y++) {
+			for (let x = pos.x - this.area; x <= pos.x + this.area; x++) {
 				if (distL1(pos, new vec2(x,y)) <= this.area) {
-					var tile = map.getTile(x,y);
+					let tile = map.getTile(x,y);
 					if (tile) {
 						this.useOnTile(caster, tile);
 					}
@@ -1699,26 +1697,26 @@ var Spell = makeClass({
 		if (caster == player && castingInfo && castingInfo.onCast) {
 			castingInfo.onCast(caster);
 		}
-	},
-	useOnTile : function(caster, tile) {
+	}
+	useOnTile(caster, tile) {
 		if ('img' in this) {
 			new PopupSpellIcon({pos:tile.pos, img:this.img});
 		}
 		if ('objs' in tile) {
-			for (var i = 0; i < tile.objs.length; i++) {
-				var obj = tile.objs[i];
-				if (obj.isa(BattleObj)) {
+			for (let i = 0; i < tile.objs.length; i++) {
+				let obj = tile.objs[i];
+				if (isa(obj, BattleObj)) {
 					this.useOnTarget(caster, obj);
 				}
 			}
 		}
 		if ('spawn' in this) {
 			//don't allow solid spawned objects to spawn over other solid objects
-			var blocking = false;
+			let blocking = false;
 			if (this.spawn.prototype.solid) {
 				if ('objs' in tile) {
-					for (var i = 0; i < tile.objs.length; i++) {
-						var obj = tile.objs[i];
+					for (let i = 0; i < tile.objs.length; i++) {
+						let obj = tile.objs[i];
 						if (obj.solid) {
 							blocking = true;
 							break;
@@ -1728,18 +1726,18 @@ var Spell = makeClass({
 			}
 			if (!blocking) {
 				//spawn
-				var spawnObj = new this.spawn({pos:new vec2(tile.pos), caster:caster});
+				let spawnObj = new this.spawn({pos:new vec2(tile.pos), caster:caster});
 				//do an initial touch test
 				if ('onTouch' in spawnObj && 'tile' in spawnObj && 'objs' in spawnObj.tile) {
-					for (var i = 0; i < spawnObj.tile.objs.length; i++) {
-						var obj = spawnObj.tile.objs[i];
+					for (let i = 0; i < spawnObj.tile.objs.length; i++) {
+						let obj = spawnObj.tile.objs[i];
 						spawnObj.onTouch(obj);
 					}
 				}
 			}
 		}
-	},
-	useOnTarget : function(caster, target) {
+	}
+	useOnTarget(caster, target) {
 		if (!this.alwaysHits && !caster.magicHitRoll(target)) {
 			new PopupText({msg:'MISS!',pos:target.pos});
 			return;
@@ -1754,9 +1752,11 @@ var Spell = makeClass({
 			target.removeAttributes(this.removeAttributes);
 		}
 	}
-});
+}
+Spell.prototype.inflictAttributes = [];
+Spell.prototype.inflictChance = 1/4;
 
-var spells = [
+let spells = [
 	// TODO get rid of these, and route the damage call from Fire Wall through spell itself some other way ...
 	{name:'Fire', damage:5, range:8, area:2, cost:1, url:'objs/firewall.png'},
 	{name:'Ice', damage:5, range:8, area:2, cost:1, url:'objs/firewall.png'},
@@ -1772,10 +1772,18 @@ var spells = [
 	{name:"Blink", range:20, area:0, cost:10, targetSelf:true, useOnTile:function(caster, tile) { player.setPos(tile.pos.x, tile.pos.y); }},
 	{name:"Light", range:20, area:0, cost:1, targetSelf:true, inflictAttributes:["Light"], inflictChance:1, alwaysHits:true}
 ];
-for (var i = 0; i < spells.length; i++) {
-	var spellProto = spells[i];
-	if (!('super' in spellProto)) spellProto.super = Spell;
-	var spell = new (makeClass(spellProto))();
+for (let i = 0; i < spells.length; i++) {
+	let spellProto = spells[i];
+	let spellClass;
+	if ('super' in spellProto) {
+		spellClass = class extends spellProto.super {}
+	} else {
+		spellClass = class extends Spell {}
+	}
+	for (let k in spellProto) {
+		spellClass.prototype[k] = spellProto[k];
+	}
+	let spell = new spellClass();
 	spells[i] = spell;
 	if (spellProto.name in spells) throw "got two spells with matching names";
 	spells[spellProto.name] = spell;
@@ -1785,7 +1793,7 @@ for (var i = 0; i < spells.length; i++) {
 // items
 
 
-var weaponBaseTypes = [
+let weaponBaseTypes = [
 	{name:'Derp', damageType:'slash', fieldRanges:{physAttack:1, physHitChance:5}},
 	{name:'Staff', damageType:'bludgeon', fieldRanges:{physAttack:1, physHitChance:10, magicAttack:5, magicHitChance:10}},
 	{name:'Dagger', damageType:'slash', fieldRanges:{physAttack:2, physHitChance:10}},
@@ -1799,7 +1807,7 @@ var weaponBaseTypes = [
 	{name:'Crossbow', damageType:'pierce', fieldRanges:{physAttack:9, physHitChance:45, range:20}}
 ];
 
-var weaponModifiers = [
+let weaponModifiers = [
 	{name:"Plain ol'"},
 	{name:'Short', fieldRanges:{physAttack:[0,5], physHitChance:[0,10]}},
 	{name:'Long', fieldRanges:{physAttack:[3,8], physHitChance:[5,15]}},
@@ -1811,9 +1819,9 @@ var weaponModifiers = [
 	{name:'Dragon', fieldRanges:{physAttack:[30,40], physHitChance:[40,50]}},
 	{name:'Quick', fieldRanges:{physAttack:[40,45], physHitChance:[90,100]}}
 ];
-var weaponModifierFields = ['physAttack', 'physHitChance'];
+let weaponModifierFields = ['physAttack', 'physHitChance'];
 
-var defenseModifiers = [
+let defenseModifiers = [
 	{name:"Cloth", fieldRanges:{magicEvade:1, hpMax:1, physEvade:1}},
 	{name:"Leather", fieldRanges:{magicEvade:2, hpMax:2, physEvade:2}},
 	{name:"Wooden", fieldRanges:{magicEvade:3, hpMax:3, physEvade:3}},
@@ -1839,48 +1847,37 @@ var defenseModifiers = [
 	{name:"Pro", fieldRanges:{magicEvade:23, hpMax:23, physEvade:23}},
 	{name:"Diamond", fieldRanges:{magicEvade:24, hpMax:24, physEvade:24}}
 ];
-var armorBaseTypes = [
+let armorBaseTypes = [
 	{name:'Armor'}
 ];
-var armorModifiers = defenseModifiers;
-var armorModifierFields = ['magicEvade', 'physEvade', 'hpMax'];
+let armorModifiers = defenseModifiers;
+let armorModifierFields = ['magicEvade', 'physEvade', 'hpMax'];
 
-var helmBaseTypes = [
+let helmBaseTypes = [
 	{name:'Helm'}
 ];
-var helmModifiers = defenseModifiers;
-var helmModifierFields = ['magicEvade', 'physEvade'];
+let helmModifiers = defenseModifiers;
+let helmModifierFields = ['magicEvade', 'physEvade'];
 
-var shieldBaseTypes = [
+let shieldBaseTypes = [
 	{name:'Buckler'},
 	{name:'Shield', evadeRange:[5,10]}
 ];
-var shieldModifiers = defenseModifiers;
-var shieldModifierFields = ['magicEvade', 'physEvade'];
+let shieldModifiers = defenseModifiers;
+let shieldModifierFields = ['magicEvade', 'physEvade'];
 
-var Item = makeClass({
-	costPerField : {
-		physAttack : 10,
-		physHitChance : 5,
-		physEvade : 3,
-		magicEvade : 7,
-		hpMax : 5,	//equipment uses hp/mp Max
-		mpMax : 3,
-		hp : .8,	//usable items use hp/mp
-		mp : 2,
-		food : .02,
-	},
-	init : function() {
+class Item {
+	constructor() {
 		if ('fieldRanges' in this) this.applyRanges(this.fieldRanges);
-	},
-	applyRanges : function(fieldRanges) {
-		for (var field in fieldRanges) {
-			var rangeInfo = fieldRanges[field];
+	}
+	applyRanges(fieldRanges) {
+		for (let field in fieldRanges) {
+			let rangeInfo = fieldRanges[field];
 			if (typeof(rangeInfo) == 'number') {
 				rangeInfo = [Math.ceil(rangeInfo * .75), rangeInfo];
 			}
 			if (this[field] == undefined) this[field] = 0;
-			var statValue = randomRange.apply(undefined, rangeInfo);
+			let statValue = randomRange.apply(undefined, rangeInfo);
 			this[field] += statValue;
 			if (field in this.costPerField) {
 				if (this.cost == undefined) this.cost = 0;
@@ -1889,12 +1886,22 @@ var Item = makeClass({
 		}
 		if (this.cost !== undefined) this.cost = Math.ceil(this.cost);
 	}
-});
+}
+Item.prototype.costPerField = {
+	physAttack : 10,
+	physHitChance : 5,
+	physEvade : 3,
+	magicEvade : 7,
+	hpMax : 5,	//equipment uses hp/mp Max
+	mpMax : 3,
+	hp : .8,	//usable items use hp/mp
+	mp : 2,
+	food : .02,
+};
 
-var UsableItem = makeClass({
-	super : Item,
-	use : function() {
-		var result;
+class UsableItem extends Item {
+	use() {
+		let result;
 		if ('hp' in this) player.adjustPoints('hp', this.hp);
 		if ('mp' in this) player.adjustPoints('mp', this.mp);
 		if ('food' in this) player.adjustPoints('food', this.food);
@@ -1906,7 +1913,7 @@ var UsableItem = makeClass({
 			player.spells.push(this.spellTaught);
 		}
 		if ('spellUsed' in this) {
-			var thiz = this;
+			let thiz = this;
 			this.spellUsed.clientUse({dontCost:true, onCast:function() {
 				player.items.splice(player.items.indexOf(thiz), 1);
 			}});
@@ -1914,17 +1921,16 @@ var UsableItem = makeClass({
 		}
 		return result;
 	}
-});
+}
 
-var EquipItem = makeClass({
-	super : Item,
-	init : function() {
-		EquipItem.super.apply(this, arguments);
-		var name = undefined;
-		var area = 0;
+class EquipItem extends Item {
+	constructor(...args) {
+		super(...args);
+		let name = undefined;
+		let area = 0;
 		if ('baseTypes' in this) {
-			var baseTypes = this.baseTypes;
-			var baseType = pickRandom(baseTypes);
+			let baseTypes = this.baseTypes;
+			let baseType = pickRandom(baseTypes);
 			if (baseType.damageType !== undefined) this.damageType = baseType.damageType;
 			if (baseType.area !== undefined) area += baseType.area;
 			this.applyRanges(baseType.fieldRanges);
@@ -1934,13 +1940,13 @@ var EquipItem = makeClass({
 			if (!('modifierFields' in this)) {
 				throw "class "+this.name+" has no modifierFields";
 			}
-			var modifiers = this.modifiers;
-			var modifier = pickRandom(modifiers);
+			let modifiers = this.modifiers;
+			let modifier = pickRandom(modifiers);
 			if (modifier.area !== undefined) area += modifier.area;
 			if ('fieldRanges' in modifier) {
-				var modifierRanges = {};
-				for (var i = 0; i < this.modifierFields.length; i++) {
-					var field = this.modifierFields[i]
+				let modifierRanges = {};
+				for (let i = 0; i < this.modifierFields.length; i++) {
+					let field = this.modifierFields[i]
 					modifierRanges[field] = modifier.fieldRanges[field];
 				}
 				this.applyRanges(modifierRanges);
@@ -1950,15 +1956,15 @@ var EquipItem = makeClass({
 		}
 		if (name !== undefined) this.name = name;
 		this.attackOffsets = [new vec2(1,0)];
-		var used = {};
+		let used = {};
 		used[(new vec2(0,0)).toString()] = true;
 		used[(new vec2(1,0)).toString()] = true;
-		for (var i = 0; i < area; i++) {
-			for (var tries = 0; tries < 100; tries++) {
-				var src = pickRandom(this.attackOffsets);
-				var ofs = pickRandom(dirs).offset;
-				var dst = src.add(ofs);
-				var dstkey = dst.toString();
+		for (let i = 0; i < area; i++) {
+			for (let tries = 0; tries < 100; tries++) {
+				let src = pickRandom(this.attackOffsets);
+				let ofs = pickRandom(dirs).offset;
+				let dst = src.add(ofs);
+				let dstkey = dst.toString();
 				if (dstkey in used) continue;
 				this.attackOffsets.push(dst);
 				used[dstkey] = true;
@@ -1967,51 +1973,41 @@ var EquipItem = makeClass({
 		}
 		this.attackOffsets.splice(0,1);
 	}
-});
+}
 
-var WeaponItem = makeClass({
-	super : EquipItem,
-	name : 'Weapon',
-	type : 'weapon',
-	baseTypes : weaponBaseTypes,
-	modifiers : weaponModifiers,
-	modifierFields : weaponModifierFields
-});
+class WeaponItem extends EquipItem {}
+WeaponItem.prototype.name = 'Weapon';
+WeaponItem.prototype.type = 'weapon';
+WeaponItem.prototype.baseTypes = weaponBaseTypes;
+WeaponItem.prototype.modifiers = weaponModifiers;
+WeaponItem.prototype.modifierFields = weaponModifierFields;
 
-var ArmorItem = makeClass({
-	super : EquipItem,
-	name : 'Armor',
-	type : 'armor',
-	baseTypes : armorBaseTypes,
-	modifiers : armorModifiers,
-	modifierFields : armorModifierFields
-});
+class ArmorItem extends EquipItem {}
+ArmorItem.prototype.name = 'Armor';
+ArmorItem.prototype.type = 'armor';
+ArmorItem.prototype.baseTypes = armorBaseTypes;
+ArmorItem.prototype.modifiers = armorModifiers;
+ArmorItem.prototype.modifierFields = armorModifierFields;
 
-var ShieldItem = makeClass({
-	super : EquipItem,
-	name : 'Shield',
-	type : 'shield',
-	baseTypes : shieldBaseTypes,
-	modifiers : shieldModifiers,
-	modifierFields : shieldModifierFields
-});
+class ShieldItem extends EquipItem {}
+ShieldItem.prototype.name = 'Shield';
+ShieldItem.prototype.type = 'shield';
+ShieldItem.prototype.baseTypes = shieldBaseTypes;
+ShieldItem.prototype.modifiers = shieldModifiers;
+ShieldItem.prototype.modifierFields = shieldModifierFields;
 
-var HelmItem = makeClass({
-	super : EquipItem,
-	name : 'Helm',
-	type : 'helm',
-	baseTypes : helmBaseTypes,
-	modifiers : helmModifiers,
-	modifierFields : helmModifierFields
-});
+class HelmItem extends EquipItem {}
+HelmItem.prototype.name = 'Helm';
+HelmItem.prototype.type = 'helm';
+HelmItem.prototype.baseTypes = helmBaseTypes;
+HelmItem.prototype.modifiers = helmModifiers;
+HelmItem.prototype.modifierFields = helmModifierFields;
 
-var RelicItem = makeClass({
-	super : EquipItem,
-	name : 'Relic',
-	type : 'relic'
-});
+class RelicItem extends EquipItem {}
+RelicItem.prototype.name = 'Relic';
+RelicItem.prototype.type = 'relic';
 
-var itemClasses = [
+let itemClasses = [
 	//potions 
 	makeClass({super:UsableItem, name:'Potion', fieldRanges:{hp:25}}),
 	makeClass({super:UsableItem, name:'Big Potion', fieldRanges:{hp:150}}),
@@ -2037,34 +2033,33 @@ var itemClasses = [
 	makeClass({super:RelicItem, name:'MPify', cost:500, mpMaxModify:function(value) { return value * 2; }, hpMaxModify:function(value) { return Math.ceil(value/2); }}),
 	makeClass({super:RelicItem, name:'HPify', cost:500, hpMaxModify:function(value) { return value * 2; }, mpMaxModify:function(value) { return Math.ceil(value/2); }})
 ];
-for (var i = 0; i < spells.length; i++) {
-	var spell = spells[i];
+for (let i = 0; i < spells.length; i++) {
+	let spell = spells[i];
 	itemClasses.push(makeClass({super:UsableItem, name:spell.name+' Book', cost:100, spellTaught:spell}));
 }
-for (var i = 0; i < spells.length; i++) {
-	var spell = spells[i];
+for (let i = 0; i < spells.length; i++) {
+	let spell = spells[i];
 	itemClasses.push(makeClass({super:UsableItem, name:spell.name+' Scroll', cost:10, spellUsed:spell}));
 }
-for (var i = 0; i < itemClasses.length; i++) {
+for (let i = 0; i < itemClasses.length; i++) {
 	itemClasses[itemClasses[i].prototype.name] = itemClasses[i];
 }
-
 
 
 // tile types
 
 
-var Tile = makeClass({
-	init : function() {
+class Tile {
+	constructor() {
 		this.img = pickRandom(this.imgs);
 		assert(arguments.length == 1);
-		var pos = arguments[0];
+		let pos = arguments[0];
 		this.pos = new vec2(pos);
 	}
-});
+}
 
 
-var tileTypes = [
+let tileTypes = [
 	makeClass({
 		super:Tile,
 		name:'Grass', 
@@ -2076,13 +2071,13 @@ var tileTypes = [
 	makeClass({super:Tile, name:'Bricks', urls:['images/bricks.png']}),
 	makeClass({super:Tile, name:'Wall', urls:['images/wall.png'], solid:true})
 ];
-for (var i = 0; i < tileTypes.length; i++) {
-	var tileType = tileTypes[i];
+for (let i = 0; i < tileTypes.length; i++) {
+	let tileType = tileTypes[i];
 	if (tileType.prototype.name in tileTypes) console.log("tileTypes name "+tileType.prototype.name+" used twice!");
 	tileTypes[tileType.prototype.name] = tileType;
 }
 
-var tileTypeForPixel = {
+let tileTypeForPixel = {
 	0x00ff00 : tileTypes.Grass,
 	0x007f00 : tileTypes.Trees,
 	0x0000ff : tileTypes.Water,
@@ -2095,19 +2090,19 @@ var tileTypeForPixel = {
 // globals
 
 
-var canvas;
-var map;
-var tileSize = new vec2(64, 64);
-var fontSize = 32;
-var player;
-var setMapRequest = undefined;
-var keyCallback;
+let canvas;
+let map;
+let tileSize = new vec2(64, 64);
+let fontSize = 32;
+let player;
+let setMapRequest = undefined;
+let keyCallback;
 
-var maps = [];
-var storyInfo = {};
+let maps = [];
+let storyInfo = {};
 
 
-var Map = makeClass({
+class Map {
 	/*
 	args:
 		name
@@ -2123,7 +2118,7 @@ var Map = makeClass({
 		playerStart
 		tileType
 	*/
-	init : function(args) {
+	constructor(args) {
 		this.name = assertExists(args, 'name');
 		
 		this.fixedObjs = [];
@@ -2137,27 +2132,27 @@ var Map = makeClass({
 		if ('playerStart' in args) this.playerStart = new vec2(args.playerStart);
 		if ('fogColor' in args) this.fogColor = args.fogColor;
 		if ('url' in args) {
-			var img = makeDOM('img');
-			var thiz = this;
+			let img = DOM('img');
+			let thiz = this;
 			img.onload = function() {
 				thiz.size = new vec2(img.width, img.height);
 				thiz.bbox = new box2(new vec2(), thiz.size.sub(1));
-				var canvas = makeDOM('canvas', {width:img.width, height:img.height});
-				var ctx = canvas.getContext('2d');
+				let canvas = DOM('canvas', {width:img.width, height:img.height});
+				let ctx = canvas.getContext('2d');
 				ctx.drawImage(img, 0, 0);
-				var imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+				let imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 				thiz.tiles = [];
-				for (var y = 0; y < thiz.size.y; y++) {
-					var tilerow = [];
+				for (let y = 0; y < thiz.size.y; y++) {
+					let tilerow = [];
 					thiz.tiles[y] = tilerow;
-					for (var x = 0; x < thiz.size.x; x++) {
-						var pixel = getPixel(imgData, x, y);
-						var tileType = tileTypeForPixel[pixel];
+					for (let x = 0; x < thiz.size.x; x++) {
+						let pixel = getPixel(imgData, x, y);
+						let tileType = tileTypeForPixel[pixel];
 						if (!tileType) {
 							console.log("failed to get type for pixel "+pixel);
 							tileType = tileTypeForPixel[0xffffff];
 						}
-						var tile = new tileType(new vec2(x,y));
+						let tile = new tileType(new vec2(x,y));
 						tilerow[x] = tile;
 					}
 				}
@@ -2170,13 +2165,13 @@ var Map = makeClass({
 			this.size = new vec2(args.size);
 			this.bbox = new box2(new vec2(), this.size.sub(1));
 	
-			var tileType = tileTypes.Grass;
+			let tileType = tileTypes.Grass;
 			if ('tileType' in args) tileType = args.tileType;
 			this.tiles = [];
-			for (var y = 0; y < this.size.y; y++) {
-				var tilerow = [];
+			for (let y = 0; y < this.size.y; y++) {
+				let tilerow = [];
 				this.tiles[y] = tilerow;
-				for (var x = 0; x < this.size.x; x++) {
+				for (let x = 0; x < this.size.x; x++) {
 					tilerow[x] = new tileType(new vec2(x,y));
 				}
 			}
@@ -2185,10 +2180,10 @@ var Map = makeClass({
 			maps[this.name] = this;
 			if ('onload' in args) args.onload(this);
 		}
-	},
+	}
 	//wraps the position if the map is a wrap map
 	//if not, returns false
-	wrapPos : function(pos) {
+	wrapPos(pos) {
 		pos.y = Math.floor(pos.y);
 		pos.x = Math.floor(pos.x);
 		if (this.wrap) {
@@ -2198,47 +2193,47 @@ var Map = makeClass({
 			if (pos.x < 0 || pos.y < 0 || pos.x >= this.size.x || pos.y >= this.size.y) return false;
 		}
 		return true;
-	},
-	getTile : function(x,y) {
-		var pos = new vec2(x,y);
+	}
+	getTile(x,y) {
+		let pos = new vec2(x,y);
 		if (!this.wrapPos(pos)) return;
-		var tile = this.tiles[pos.y][pos.x];
+		let tile = this.tiles[pos.y][pos.x];
 		return tile;
-	},
-	setTileType : function(x,y,tileType) {
-		var pos = new vec2(x,y);
+	}
+	setTileType(x,y,tileType) {
+		let pos = new vec2(x,y);
 		if (!this.wrapPos(pos)) return;
-		var tile = new tileType(pos);
+		let tile = new tileType(pos);
 		this.tiles[pos.y][pos.x] = tile;
 		return tile;
-	},
+	}
 	/*
 	args:
 		pos
 		range,
 		callback
 	*/
-	floodFill : function(args) {
-		var allTiles = {};
-		var startPos = new vec2(args.pos);
-		var startTile = this.getTile(startPos.x, startPos.y);
-		var startInfo = {tile:startTile, pos:startPos, dist:0};
+	floodFill(args) {
+		let allTiles = {};
+		let startPos = new vec2(args.pos);
+		let startTile = this.getTile(startPos.x, startPos.y);
+		let startInfo = {tile:startTile, pos:startPos, dist:0};
 		args.callback(startInfo.tile, startInfo.dist);
 		allTiles[startPos.toString()] = startInfo;
-		var current = [startInfo];
+		let current = [startInfo];
 		while (current.length > 0) {
-			var next = [];
-			for (var i = 0; i < current.length; i++) {
-				var currentInfo = current[i];
-				var nextDist = currentInfo.dist + 1;
+			let next = [];
+			for (let i = 0; i < current.length; i++) {
+				let currentInfo = current[i];
+				let nextDist = currentInfo.dist + 1;
 				if (nextDist <= args.maxDist) {
-					for (var j = 0; j < dirs.length; j++) {
-						var nextPos = currentInfo.pos.add(dirs[j].offset);
+					for (let j = 0; j < dirs.length; j++) {
+						let nextPos = currentInfo.pos.add(dirs[j].offset);
 						if (this.wrapPos(nextPos)) {
-							var nextkey = nextPos.toString();
+							let nextkey = nextPos.toString();
 							if (!(nextkey in allTiles)) {
-								var tile = this.getTile(nextPos.x, nextPos.y);
-								var nextInfo = {tile:tile, pos:nextPos, dist:nextDist};
+								let tile = this.getTile(nextPos.x, nextPos.y);
+								let nextInfo = {tile:tile, pos:nextPos, dist:nextDist};
 								allTiles[nextkey] = true;
 								if (args.callback(tile, nextDist)) {
 									next.push(nextInfo);
@@ -2250,18 +2245,18 @@ var Map = makeClass({
 			}
 			current = next;
 		}
-	},
-	pathfind : function(start, end) {
+	}
+	pathfind(start, end) {
 		if (!this.wrapPos(start)) return;
 		if (!this.wrapPos(end)) return;
-		var srcX = start.x;
-		var srcY = start.y;
-		var dstX = end.x;
-		var dstY = end.y;
+		let srcX = start.x;
+		let srcY = start.y;
+		let dstX = end.x;
+		let dstY = end.y;
 		
-		var srcpos = new vec2(srcX, srcY);
-		var currentset = [{pos:srcpos}];
-		var alltiles = {};	//keys are serialized vectors
+		let srcpos = new vec2(srcX, srcY);
+		let currentset = [{pos:srcpos}];
+		let alltiles = {};	//keys are serialized vectors
 		alltiles[srcpos.toString()] = true;
 		
 		while (currentset.length > 0) {
@@ -2270,26 +2265,26 @@ var Map = makeClass({
 			test neighbors
 			if any are not in all tiles then add it to the next set and to the all tiles
 			*/
-			var nextset = [];
-			for (var i = 0; i < currentset.length; i++) {
-				var currentmove = currentset[i];
-				for (var dirIndex = 0; dirIndex < dirs.length; dirIndex++) {
-					var nextpos = currentmove.pos.add(dirs[dirIndex].offset);
+			let nextset = [];
+			for (let i = 0; i < currentset.length; i++) {
+				let currentmove = currentset[i];
+				for (let dirIndex = 0; dirIndex < dirs.length; dirIndex++) {
+					let nextpos = currentmove.pos.add(dirs[dirIndex].offset);
 					if (this.wrapPos(nextpos)) {
 						if (nextpos.x == dstX && nextpos.y == dstY) {
 							//process the list and return it
-							var rpath = [nextpos, currentmove.pos];
-							var src = currentmove.src;
+							let rpath = [nextpos, currentmove.pos];
+							let src = currentmove.src;
 							while (src) {
 								rpath.push(src.pos);
 								src = src.src;
 							}
-							var path = rpath.reverse();
+							let path = rpath.reverse();
 							return path;
 						}
-						var nextkey = nextpos.toString();
+						let nextkey = nextpos.toString();
 						if (!(nextkey in alltiles)) {
-							var tile = this.tiles[nextpos.y][nextpos.x];
+							let tile = this.tiles[nextpos.y][nextpos.x];
 							if (!(tile.solid || tile.water)) {
 								alltiles[nextkey] = true;
 								nextset.push({pos:nextpos, src:currentmove});
@@ -2301,7 +2296,7 @@ var Map = makeClass({
 			currentset = nextset;
 		}
 	}
-});
+}
 
 
 /*
@@ -2311,24 +2306,24 @@ args:
 	bbox <- default: range
 */
 function pickFreeRandomFixedPos(args) {
-	var map = args.map;
-	var bbox;
+	let map = args.map;
+	let bbox;
 	if ('bbox' in args) bbox = new box2(args.bbox);
 	else bbox = new box2(map.bbox);
-	var classify = args.classify;
+	let classify = args.classify;
 	
-	for (var attempt = 0; attempt < 1000; attempt++) {
-		var pos = randomBoxPos(bbox);
-		var tile = map.getTile(pos.x, pos.y);
+	for (let attempt = 0; attempt < 1000; attempt++) {
+		let pos = randomBoxPos(bbox);
+		let tile = map.getTile(pos.x, pos.y);
 		
-		var good;
+		let good;
 		if (classify) good = classify(tile);
 		else good = !(tile.solid || tile.water);
 		if (!good) continue;
 
-		var found = false;
-		for (var i = 0; i < map.fixedObjs.length; i++) {
-			var obj = map.fixedObjs[i];
+		let found = false;
+		for (let i = 0; i < map.fixedObjs.length; i++) {
+			let obj = map.fixedObjs[i];
 			if (obj.pos.x == pos.x && obj.pos.y == pos.y) {
 				found = true;
 				break;
@@ -2343,8 +2338,8 @@ function pickFreeRandomFixedPos(args) {
 }
 
 function findFixedObj(map, callback) {
-	for (var i = 0; i < map.fixedObjs.length; i++) {
-		var fixedObj = map.fixedObjs[i];
+	for (let i = 0; i < map.fixedObjs.length; i++) {
+		let fixedObj = map.fixedObjs[i];
 		if (callback(fixedObj)) return fixedObj;
 	}
 }
@@ -2361,14 +2356,14 @@ args:
 */
 function genTown(args) {
 	
-	var world = args.world;
+	let world = args.world;
 	world.fixedObjs.push({
 		type:TownObj,
 		pos:args.worldPos,
 		destMap:args.name
 	});
 	
-	var map = new Map({
+	let map = new Map({
 		name:args.name,
 		size:new vec2(args.size),
 		temp:args.temp,
@@ -2376,10 +2371,10 @@ function genTown(args) {
 		resetObjs:true
 	});
 	map.playerStart = new vec2(Math.floor(map.size.x/2), map.size.y-2);
-	var border = 3;
-	var entrance = 6;
-	for (var y = 0; y < map.size.y; y++) {
-		for (var x = 0; x < map.size.x; x++) {
+	let border = 3;
+	let entrance = 6;
+	for (let y = 0; y < map.size.y; y++) {
+		for (let x = 0; x < map.size.x; x++) {
 			if (x < border || y < border || y >= map.size.y-border) {
 				if (Math.abs(x-map.size.x/2) >= entrance) {
 					map.setTileType(x,y,tileTypes.Stone);
@@ -2400,19 +2395,19 @@ function genTown(args) {
 		pos:new vec2(Math.floor(map.size.x/2+entrance)-2, map.size.y-2)
 	});
 	
-	var brickradius = 3;
-	var buildBricksAround = function(pos) {
-		var minx = pos.x - brickradius;
-		var miny = pos.y - brickradius;
-		var maxx = pos.x + brickradius;
-		var maxy = pos.y + 1;
+	let brickradius = 3;
+	let buildBricksAround = function(pos) {
+		let minx = pos.x - brickradius;
+		let miny = pos.y - brickradius;
+		let maxx = pos.x + brickradius;
+		let maxy = pos.y + 1;
 		if (minx < 0) minx = 0;
 		if (miny < 0) miny = 0;
 		if (maxx >= map.size.x) maxx = map.size.x-1;
 		if (maxy >= map.size.y) maxy = map.size.y-1;
-		for (var y = miny; y <= maxy; y++) { 
-			for (var x = minx; x <= maxx; x++) {
-				if (map.getTile(x,y).isa(tileTypes.Grass)) {
+		for (let y = miny; y <= maxy; y++) { 
+			for (let x = minx; x <= maxx; x++) {
+				if (isa(map.getTile(x,y), tileTypes.Grass)) {
 					if (distLInf(pos,{x:x,y:y}) == Math.ceil(brickradius/2) && y <= pos.y) {
 						map.setTileType(x,y,tileTypes.Wall);
 					} else {
@@ -2423,7 +2418,7 @@ function genTown(args) {
 		}
 	};
 
-	var dockGuy = {
+	let dockGuy = {
 		type:MerchantObj,
 		pos:new vec2(map.size.x-border-brickradius-1, randomRange(border+1, map.size.y-border-2)),
 		onInteract:function(player) {
@@ -2431,7 +2426,7 @@ function genTown(args) {
 				clientMessage("I'm the guy at the docks");
 			} else {
 				clientMessage("We're sailing for the capitol! All set?");
-				var prompt = clientPrompt(['No', 'Yes'], function(cmd, index) {
+				let prompt = clientPrompt(['No', 'Yes'], function(cmd, index) {
 					prompt.close();
 					if (cmd == 'Yes') {
 						//TODO make the player a boat ...
@@ -2444,22 +2439,21 @@ function genTown(args) {
 	buildBricksAround(dockGuy.pos);
 	map.fixedObjs.push(dockGuy);
 
-	var pathwidth = 1;
-	var brickradius = 3;
-	
-	var findNPCPos = function() {
+	let pathwidth = 1;
+	let npcBrickRadius = 3;
+	let findNPCPos = function() {
 		return pickFreeRandomFixedPos({
 			map:map,
 			classify:function(tile) { 
-				return tile.isa(tileTypes.Grass);
+				return isa(tile, tileTypes.Grass);
 			},
 			bbox:new box2(
-				new vec2(border+brickradius+1, border+brickradius+1), 
-				new vec2(map.size.x-border-brickradius-2,map.size.y-border-brickradius-3))
+				new vec2(border+npcBrickRadius+1, border+npcBrickRadius+1), 
+				new vec2(map.size.x-border-npcBrickRadius-2,map.size.y-border-npcBrickRadius-3))
 		});
 	}
 
-	var suckGuy = {
+	let suckGuy = {
 		type:MerchantObj,
 		msg:'YOU SUCK',
 		pos:findNPCPos()
@@ -2467,7 +2461,7 @@ function genTown(args) {
 	buildBricksAround(suckGuy.pos);
 	map.fixedObjs.push(suckGuy);
 	
-	var storyGuy = {
+	let storyGuy = {
 		type:MerchantObj, 
 		pos:findNPCPos(),
 		onInteract:function(player) {
@@ -2481,14 +2475,14 @@ function genTown(args) {
 	buildBricksAround(storyGuy.pos);
 	map.fixedObjs.push(storyGuy);
 	
-	var signOffset = new vec2(-2,0);
+	let signOffset = new vec2(-2,0);
 
 	if (args.healer) {
-		var healerGuy = {
+		let healerGuy = {
 			type:MerchantObj,
 			pos:findNPCPos(),
 			onInteract:function(player) {
-				var cost = 1;
+				let cost = 1;
 				if (player.hp == player.stat('hpMax') && player.mp == player.stat('mpMax')) {
 					clientMessage("Come back when you need a healin'!");
 				} else if (player.gold >= cost) {
@@ -2510,13 +2504,13 @@ function genTown(args) {
 	}
 
 	if ('stores' in args) {
-		for (var i = 0; i < args.stores.length; i++) {
-			var storeInfo = args.stores[i];
-			var storeGuy = {
+		for (let i = 0; i < args.stores.length; i++) {
+			let storeInfo = args.stores[i];
+			let storeGuy = {
 				type:MerchantObj,
 				pos:findNPCPos(),
 				store:true,
-				itemClasses:storeInfo.itemClasses
+				itemClasses:storeInfo.itemClasses,
 			};
 			if ('msg' in storeInfo) storeGuy.msg = storeInfo.msg;
 			buildBricksAround(storeGuy.pos);
@@ -2528,21 +2522,21 @@ function genTown(args) {
 		}
 	}
 
-	for (var y = 0; y < map.size.y; y++) {
-		for (var x = Math.floor(map.size.x/2)-pathwidth; x <= Math.floor(map.size.x/2)+pathwidth; x++) {
-			if (map.getTile(x,y).isa(tileTypes.Grass)) {
+	for (let y = 0; y < map.size.y; y++) {
+		for (let x = Math.floor(map.size.x/2)-pathwidth; x <= Math.floor(map.size.x/2)+pathwidth; x++) {
+			if (isa(map.getTile(x,y), tileTypes.Grass)) {
 				map.setTileType(x,y,tileTypes.Bricks);
 			}
 		}
 	}
 
-	for (var i = 0; i < map.fixedObjs.length; i++) {
-		var fixedObj = map.fixedObjs[i];
+	for (let i = 0; i < map.fixedObjs.length; i++) {
+		let fixedObj = map.fixedObjs[i];
 		if (fixedObj.type == MerchantObj) {
-			for (var x = Math.min(fixedObj.pos.x, Math.floor(map.size.x/2)); x <= Math.max(fixedObj.pos.x, Math.floor(map.size.x/2)); x++) {
-				for (var y = fixedObj.pos.y-pathwidth; y <= fixedObj.pos.y+pathwidth; y++) {
+			for (let x = Math.min(fixedObj.pos.x, Math.floor(map.size.x/2)); x <= Math.max(fixedObj.pos.x, Math.floor(map.size.x/2)); x++) {
+				for (let y = fixedObj.pos.y-pathwidth; y <= fixedObj.pos.y+pathwidth; y++) {
 					if (x >= 0 && y >= 0 && x < map.size.x && y < map.size.y) {
-						if (map.getTile(x,y).isa(tileTypes.Grass)) {
+						if (isa(map.getTile(x,y), tileTypes.Grass)) {
 							map.setTileType(x,y,tileTypes.Bricks);
 						}
 					}
@@ -2558,37 +2552,37 @@ function genTown(args) {
 
 
 function genDungeonLevel(map,prevMapName,nextMapName,avgRoomSize) {
-	var rooms = [];
+	let rooms = [];
 
 	//console.log("begin gen "+map.name);
 
-	var max = Math.floor(map.size.x * map.size.y / avgRoomSize);
-	for (var i = 0; i < max; i++) {
-		var room = {pos:randomBoxPos(map.bbox)};
+	let max = Math.floor(map.size.x * map.size.y / avgRoomSize);
+	for (let i = 0; i < max; i++) {
+		let room = {pos:randomBoxPos(map.bbox)};
 		room.bbox = new box2(room.pos, room.pos);
 		rooms.push(room);
 		map.tiles[room.pos.y][room.pos.x].room = room;
 	}
 
-	var modified;
+	let modified;
 	do {
 		modified = false;
-		for (var j = 0; j < rooms.length; j++) {
-			var room = rooms[j];
-			var bbox = new box2(room.bbox.min.sub(1), room.bbox.max.add(1)).clamp(map.bbox);
-			var roomcorners = [room.bbox.min, room.bbox.max];
-			var corners = [bbox.min, bbox.max];
-			for (var i = 0; i < corners.length; i++) {
-				var corner = corners[i];
-				var found = false;
-				for (var y = room.bbox.min.y; y <= room.bbox.max.y; y++) {
+		for (let j = 0; j < rooms.length; j++) {
+			let room = rooms[j];
+			let bbox = new box2(room.bbox.min.sub(1), room.bbox.max.add(1)).clamp(map.bbox);
+			let roomcorners = [room.bbox.min, room.bbox.max];
+			let corners = [bbox.min, bbox.max];
+			for (let i = 0; i < corners.length; i++) {
+				let corner = corners[i];
+				let found = false;
+				for (let y = room.bbox.min.y; y <= room.bbox.max.y; y++) {
 					if ('room' in map.tiles[y][corner.x]) {
 						found = true;
 						break;
 					}
 				}
 				if (!found) {
-					for (var y = room.bbox.min.y; y <= room.bbox.max.y; y++) {
+					for (let y = room.bbox.min.y; y <= room.bbox.max.y; y++) {
 						map.tiles[y][corner.x].room = room;
 					}
 					roomcorners[i].x = corner.x;
@@ -2596,14 +2590,14 @@ function genDungeonLevel(map,prevMapName,nextMapName,avgRoomSize) {
 				}
 
 				found = false;
-				for (var x = room.bbox.min.x; x <= room.bbox.max.x; x++) {
+				for (let x = room.bbox.min.x; x <= room.bbox.max.x; x++) {
 					if ('room' in map.tiles[corner.y][x]) {
 						found = true;
 						break;
 					}
 				}
 				if (!found) {
-					for (var x = room.bbox.min.x; x <= room.bbox.max.x; x++) {
+					for (let x = room.bbox.min.x; x <= room.bbox.max.x; x++) {
 						map.tiles[corner.y][x].room = room;
 					}
 					roomcorners[i].y = corner.y;
@@ -2614,72 +2608,72 @@ function genDungeonLevel(map,prevMapName,nextMapName,avgRoomSize) {
 	} while(modified);
 
 	//clear tile rooms for reassignment
-	for (var y = 0; y < map.size.y; y++) {
-		for (var x = 0; x < map.size.x; x++) {
+	for (let y = 0; y < map.size.y; y++) {
+		for (let x = 0; x < map.size.x; x++) {
 			delete map.tiles[y][x].room;
 		}
 	}
 
 	//carve out rooms
 	//console.log("carving out rooms");
-	for (var i = 0; i < rooms.length; i++) {
-		var room = rooms[i];
+	for (let i = 0; i < rooms.length; i++) {
+		let room = rooms[i];
 		room.bbox.min.x++;
 		room.bbox.min.y++;
 
 		//our room goes from min+1 to max-1
 		//so if that distance is zero then we have no room
-		var dead = (room.bbox.min.x > room.bbox.max.x) || (room.bbox.min.y > room.bbox.max.y);
+		let dead = (room.bbox.min.x > room.bbox.max.x) || (room.bbox.min.y > room.bbox.max.y);
 		if (dead) {
 			rooms.splice(i,1);
 			i--;
 			continue;
 		}
 		
-		for (var y = room.bbox.min.y; y <= room.bbox.max.y; y++) {
-			for (var x = room.bbox.min.x; x <= room.bbox.max.x; x++) {
+		for (let y = room.bbox.min.y; y <= room.bbox.max.y; y++) {
+			for (let x = room.bbox.min.x; x <= room.bbox.max.x; x++) {
 				map.setTileType(x,y,tileTypes.Bricks);
 			}
 		}
 	
 		//rooms
-		for (var y = room.bbox.min.y; y <= room.bbox.max.y; y++) {
-			for (var x = room.bbox.min.x; x <= room.bbox.max.x; x++) {
+		for (let y = room.bbox.min.y; y <= room.bbox.max.y; y++) {
+			for (let x = room.bbox.min.x; x <= room.bbox.max.x; x++) {
 				map.tiles[y][x].room = room;
 			}
 		}
 	}
 	
 
-	var dimfields = ['x','y'];
-	var minmaxfields = ['min','max'];
+	let dimfields = ['x','y'];
+	let minmaxfields = ['min','max'];
 	//see what rooms touch other rooms
 	//console.log("finding neighbors");
-	var pos = new vec2();
-	for (var i = 0; i < rooms.length; i++) {
-		var room = rooms[i];
+	let pos = new vec2();
+	for (let i = 0; i < rooms.length; i++) {
+		let room = rooms[i];
 		room.neighbors = [];
 
-		for (var dim = 0; dim < 2; dim++) {
-			var dimfield = dimfields[dim];
-			var dimnextfield = dimfields[(dim+1)%2];
-			for (var minmax = 0; minmax < 2; minmax++) {
-				var minmaxfield = minmaxfields[minmax];
-				var minmaxofs;
+		for (let dim = 0; dim < 2; dim++) {
+			let dimfield = dimfields[dim];
+			let dimnextfield = dimfields[(dim+1)%2];
+			for (let minmax = 0; minmax < 2; minmax++) {
+				let minmaxfield = minmaxfields[minmax];
+				let minmaxofs;
 				if (minmax == 0) minmaxofs = -1;
 				else minmaxofs = 1;
 				pos[dimfield] = room.bbox[minmaxfield][dimfield] + minmaxofs;
 				for (pos[dimnextfield] = room.bbox.min[dimnextfield]+1; pos[dimnextfield] <= room.bbox.max[dimnextfield]-1; pos[dimnextfield]++) {
 					//step twice to find our neighbor
-					var nextpos = new vec2(pos);
+					let nextpos = new vec2(pos);
 					nextpos[dimfield] += minmaxofs;
-					var tile = map.getTile(nextpos.x,nextpos.y);
+					let tile = map.getTile(nextpos.x,nextpos.y);
 					if (!tile) continue;
 					if (!('room' in tile)) continue;
-					var neighborRoom = tile.room;
-					var neighborRoomIndex = rooms.indexOf(neighborRoom);
+					let neighborRoom = tile.room;
+					let neighborRoomIndex = rooms.indexOf(neighborRoom);
 					if (neighborRoomIndex == -1) throw "found unknown neighbor room";
-					var j = 0;
+					let j = 0;
 					for (; j < room.neighbors.length; j++) {
 						if (room.neighbors[j].room == neighborRoom) break;
 					}
@@ -2692,38 +2686,38 @@ function genDungeonLevel(map,prevMapName,nextMapName,avgRoomSize) {
 
 	//pick a random room as the start
 	//TODO start in a big room.
-	var startRoom = pickRandom(rooms);
-	var lastRoom = startRoom;
+	let startRoom = pickRandom(rooms);
+	let lastRoom = startRoom;
 
-	var leafRooms = [];
-	var usedRooms = [startRoom];
+	let leafRooms = [];
+	let usedRooms = [startRoom];
 
 	//console.log("establishing connectivity");
 	while (true) {
-		var srcRoomOptions = usedRooms.filter(function(room) {
+		let srcRoomOptions = usedRooms.filter(function(room) {
 			//if the room has no rooms that haven't been used,then don't consider it
 			//so keep all of the neighbor's neighbors that haven't been used
-			var usedNeighbors = room.neighbors.filter(function(neighborInfo) {
+			let usedNeighbors = room.neighbors.filter(function(neighborInfo) {
 				return usedRooms.indexOf(neighborInfo.room) == -1;
 			});
 			//if this has any good neighbors then consider it
 			return usedNeighbors.length > 0;
 		});
 		if (srcRoomOptions == 0) break;
-		var srcRoom = pickRandom(srcRoomOptions);
+		let srcRoom = pickRandom(srcRoomOptions);
 
-		var leafRoomIndex = leafRooms.indexOf(srcRoom);
+		let leafRoomIndex = leafRooms.indexOf(srcRoom);
 		if (leafRoomIndex != -1) leafRooms.splice(leafRoomIndex, 1);
 	
 		//this is the same filter as is within the srcRoomOptions filter -- so if you want to cache this info, feel free
-		var neighborInfoOptions = srcRoom.neighbors.filter(function(neighborInfo) {
+		let neighborInfoOptions = srcRoom.neighbors.filter(function(neighborInfo) {
 			return usedRooms.indexOf(neighborInfo.room) == -1;
 		});
-		var neighborInfo = pickRandom(neighborInfoOptions);
-		var dstRoom = neighborInfo.room;
+		let neighborInfo = pickRandom(neighborInfoOptions);
+		let dstRoom = neighborInfo.room;
 		lastRoom = dstRoom;
 		//so find dstRoom in srcRoom.neighbors
-		var pos = pickRandom(neighborInfo.positions);
+		let pos = pickRandom(neighborInfo.positions);
 		map.setTileType(pos.x, pos.y, tileTypes.Bricks);
 		map.fixedObjs.push({
 			pos:pos,
@@ -2734,14 +2728,14 @@ function genDungeonLevel(map,prevMapName,nextMapName,avgRoomSize) {
 	}
 
 	/*
-	for (var y = 0; y < map.size.y; y++) {
-		for (var x = 0; x < map.size.x; x++) {
+	for (let y = 0; y < map.size.y; y++) {
+		for (let x = 0; x < map.size.x; x++) {
 			delete map.tiles[y][x].room;
 		}
 	}
 	*/
 
-	var upstairs = {
+	let upstairs = {
 		type:UpStairsObj,
 		pos:pickFreeRandomFixedPos({map:map, bbox:startRoom.bbox}),
 		destMap:prevMapName
@@ -2761,7 +2755,8 @@ function genDungeonLevel(map,prevMapName,nextMapName,avgRoomSize) {
 			pos:pickFreeRandomFixedPos({map:map, bbox:lastRoom.bbox}),
 			msg:'Tee Hee! Take me back to the village',
 			onInteract:function(player) {
-				MerchantObj.prototype.onInteract.apply(this, arguments);
+				// so much for ES6 OOP being more useful than hacked-together original JS prototypes...
+				MerchantObj.prototye.onInteract.apply(this, arguments);
 				player.adjustPoints('hp', player.stat('hpMax'));
 				// unlock the next story point
 				//TODO quests?
@@ -2772,8 +2767,8 @@ function genDungeonLevel(map,prevMapName,nextMapName,avgRoomSize) {
 	}
 	
 	//add treasure - after stairs so they get precedence
-	for (var i = 0; i < usedRooms.length; i++) {
-		var room = usedRooms[i];
+	for (let i = 0; i < usedRooms.length; i++) {
+		let room = usedRooms[i];
 		if (room == startRoom) continue;
 		if (room == lastRoom) continue;
 		if (Math.random() > .5) continue;
@@ -2799,22 +2794,22 @@ args:
 	avgRoomSize
 */
 function genDungeon(args) {
-	var world = args.world;
+	let world = args.world;
 	world.fixedObjs.push({
 		type:TownObj,
 		pos:args.worldPos,
 		destMap:args.prefix+'1'
 	});
 
-	var avgRoomSize = 20;
+	let avgRoomSize = 20;
 	if ('avgRoomSize' in args) avgRoomSize = args.avgRoomSize;
 
 	//console.log("generating dungeon stack "+args.prefix);
-	var depth = 1;
+	let depth = 1;
 	if ('depth' in args) depth = args.depth;
-	var firstMap;
-	for (var i = 0; i < depth; i++) {
-		var map = new Map({
+	let firstMap;
+	for (let i = 0; i < depth; i++) {
+		let map = new Map({
 			name:args.prefix+(i+1),
 			size:new vec2(args.size),
 			spawn:args.spawn,	//all keeping the same copy for now
@@ -2825,8 +2820,8 @@ function genDungeon(args) {
 		});
 		if (!firstMap) firstMap = map;
 
-		var prevMapName = undefined;
-		var nextMapName = undefined;
+		let prevMapName = undefined;
+		let nextMapName = undefined;
 		if (i == 0) prevMapName = 'World';
 		else prevMapName = args.prefix+i;
 		if (i < depth-2) nextMapName = args.prefix+(i+2);
@@ -2835,13 +2830,13 @@ function genDungeon(args) {
 		//after generating it and before adding it
 		//modify all warps to this dungeon -- give them the appropriate location
 		if (i == 0) {
-			for (var j = 0; j < maps.length; j++) {
-				var othermap = maps[j];
+			for (let j = 0; j < maps.length; j++) {
+				let othermap = maps[j];
 				if ('fixedObjs' in othermap) {
-					for (var k = 0; k < othermap.fixedObjs.length; k++) {
-						var fixedObj = othermap.fixedObjs[k];
+					for (let k = 0; k < othermap.fixedObjs.length; k++) {
+						let fixedObj = othermap.fixedObjs[k];
 						if (fixedObj.destMap == args.prefix+'1') {
-							for (var l = 0; l < map.fixedObjs.length; l++) {
+							for (let l = 0; l < map.fixedObjs.length; l++) {
 								if (map.fixedObjs[l].type == UpStairsObj) {
 									fixedObj.destPos = map.fixedObjs[l].pos;
 									break;
@@ -2869,17 +2864,17 @@ start it out
 */
 
 function drawGrassBlob(map, cx,cy,r) {
-	var extra = 3;
-	var sr = r + extra;
-	for (var dy = -sr; dy <= sr; dy++) {
-		for (var dx = -sr; dx <= sr; dx++) {
-			var x = dx + cx;
-			var y = dy + cy;
-			var rad = Math.sqrt(dx*dx + dy*dy);
+	let extra = 3;
+	let sr = r + extra;
+	for (let dy = -sr; dy <= sr; dy++) {
+		for (let dx = -sr; dx <= sr; dx++) {
+			let x = dx + cx;
+			let y = dy + cy;
+			let rad = Math.sqrt(dx*dx + dy*dy);
 			rad -= extra*(1+noise(x/10,y/10));
 			if (rad <= r) {
-				var mx = (x + map.size.x) % map.size.x;
-				var my = (y + map.size.y) % map.size.y;
+				let mx = (x + map.size.x) % map.size.x;
+				let my = (y + map.size.y) % map.size.y;
 				map.setTileType(mx, my, tileTypes.Grass);
 			}
 		}
@@ -2888,8 +2883,8 @@ function drawGrassBlob(map, cx,cy,r) {
 
 function initMaps() {
 	/* randgen world */
-	var worldBaseSpawnRate = .02;
-	var world = new Map({
+	let worldBaseSpawnRate = .02;
+	let world = new Map({
 		name:'World',
 		size:new vec2(256, 256),
 		temp:70,
@@ -2907,23 +2902,23 @@ function initMaps() {
 		]
 	});
 	
-	var grassRadius = 15;
-	var townGrassPos = randomBoxPos(world.bbox);
-	var dungeonDist = 10;
-	var dungeonPos = new vec2(randomRange(-2*dungeonDist,-dungeonDist),randomRange(-dungeonDist,dungeonDist)).add(townGrassPos);
-	var delta = dungeonPos.sub(townGrassPos);
-	var divs = Math.ceil(Math.max(Math.abs(delta.x), Math.abs(delta.y)));
-	for (var i = 0; i <= divs; i++) {
-		var frac = i / divs;
-		var x = Math.floor(townGrassPos.x + delta.x * frac + .5);
-		var y = Math.floor(townGrassPos.y + delta.y * frac + .5);
+	let grassRadius = 15;
+	let townGrassPos = randomBoxPos(world.bbox);
+	let dungeonDist = 10;
+	let dungeonPos = new vec2(randomRange(-2*dungeonDist,-dungeonDist),randomRange(-dungeonDist,dungeonDist)).add(townGrassPos);
+	let delta = dungeonPos.sub(townGrassPos);
+	let divs = Math.ceil(Math.max(Math.abs(delta.x), Math.abs(delta.y)));
+	for (let i = 0; i <= divs; i++) {
+		let frac = i / divs;
+		let x = Math.floor(townGrassPos.x + delta.x * frac + .5);
+		let y = Math.floor(townGrassPos.y + delta.y * frac + .5);
 		//TODO single ellipsoid with control points at townGrassPos and dungeonPos
 		drawGrassBlob(world, x, y, grassRadius);
 	}
 	//TODO then trace from townGrassPos to the sea
 
-	var townPos = new vec2(townGrassPos);
-	while (world.getTile(townPos.x,townPos.y).isa(tileTypes.Grass)) townPos.x++;
+	let townPos = new vec2(townGrassPos);
+	while (isa(world.getTile(townPos.x,townPos.y), tileTypes.Grass)) townPos.x++;
 	world.playerStart = townPos.sub(new vec2(1,0));
 
 	function isWeapon(itemClass) { return isa(itemClass, WeaponItem); }
@@ -2933,7 +2928,7 @@ function initMaps() {
 	function isSpell(itemClass) { return isa(itemClass, UsableItem) && 'spellUsed' in itemClass.prototype || 'spellTaught' in itemClass.prototype; }
 	function isMisc(itemClass) { return isa(itemClass, UsableItem) && !isFood(itemClass) && !isSpell(itemClass); }
 
-	var town = genTown({
+	let town = genTown({
 		world:world,
 		worldPos:townPos,
 		name:'Helpless Village',
@@ -2951,8 +2946,8 @@ function initMaps() {
 		]
 	});
 
-	var dungeonBaseSpawnRate = .1;
-	var dungeon = genDungeon({
+	let dungeonBaseSpawnRate = .1;
+	let dungeon = genDungeon({
 		world:world,
 		worldPos:dungeonPos,
 		prefix:'DungeonA',
@@ -2967,24 +2962,24 @@ function initMaps() {
 		temp:{from:70, to:40}
 	});
 
-	var townFixedObj = findFixedObj(world, function(fixedObj) { return fixedObj.destMap == town.name; });
-	var dungeonFixedObj = findFixedObj(world, function(fixedObj) { return fixedObj.destMap == dungeon.name; });
+	let townFixedObj = findFixedObj(world, function(fixedObj) { return fixedObj.destMap == town.name; });
+	let dungeonFixedObj = findFixedObj(world, function(fixedObj) { return fixedObj.destMap == dungeon.name; });
 	//now pathfind from townFixedObj.pos to dungeonFixedObj.pos, follow the path, and fill it in as brick
-	var path = world.pathfind(townFixedObj.pos, dungeonFixedObj.pos);
+	let path = world.pathfind(townFixedObj.pos, dungeonFixedObj.pos);
 	if (!path) console.log("from",townFixedObj.pos,"to",dungeonFixedObj.pos);
 	if (path) {
-		for (var i = 0; i < path.length; i++) {
-			var pos = path[i];
+		for (let i = 0; i < path.length; i++) {
+			let pos = path[i];
 			world.setTileType(pos.x, pos.y, tileTypes.Bricks);
 		}	
 	}
 
 	//put rocks around the town
-	var rockRadius = 3;
-	for (var y = townFixedObj.pos.y - rockRadius; y <= townFixedObj.pos.y + rockRadius; y++) {
-		for (var x = townFixedObj.pos.x - rockRadius; x <= townFixedObj.pos.x + rockRadius; x++) {
-			var tile = world.getTile(x,y);
-			if (tile.isa(tileTypes.Grass)) {
+	let rockRadius = 3;
+	for (let y = townFixedObj.pos.y - rockRadius; y <= townFixedObj.pos.y + rockRadius; y++) {
+		for (let x = townFixedObj.pos.x - rockRadius; x <= townFixedObj.pos.x + rockRadius; x++) {
+			let tile = world.getTile(x,y);
+			if (isa(tile, tileTypes.Grass)) {
 				if (distLInf(townFixedObj.pos,{x:x,y:y}) <= 1) {
 					world.setTileType(x,y,tileTypes.Bricks);
 				} else {
@@ -2995,9 +2990,9 @@ function initMaps() {
 	}
 
 	//now sprinkle in trees
-	for (var y = 0; y < world.size.y; y++) {
-		for (var x = 0; x < world.size.x; x++) {
-			if (world.getTile(x,y).isa(tileTypes.Grass)) {
+	for (let y = 0; y < world.size.y; y++) {
+		for (let x = 0; x < world.size.x; x++) {
+			if (isa(world.getTile(x,y), tileTypes.Grass)) {
 				if (Math.random() < (noise(x/20,y/20)+1)*.5 - .1) {
 					world.setTileType(x,y,tileTypes.Trees);
 				}
@@ -3012,12 +3007,12 @@ function drawTextBlock(ctx, msgs, x, y, floatRight) {
 	ctx.save();
 	ctx.font = fontSize+'px sans-serif';
 	
-	var maxWidth = 0;
-	for (var j = 0; j < msgs.length; j++) {
+	let maxWidth = 0;
+	for (let j = 0; j < msgs.length; j++) {
 		maxWidth = Math.max(maxWidth, ctx.measureText(msgs[j]).width);
 	}
 
-	var rectx = x;
+	let rectx = x;
 	if (floatRight) rectx -= maxWidth + 20;
 	
 	ctx.save();
@@ -3027,9 +3022,9 @@ function drawTextBlock(ctx, msgs, x, y, floatRight) {
 	ctx.restore();
 
 	y += fontSize;
-	for (var j = 0; j < msgs.length; j++) {
-		var rowx = x;
-		var msg = msgs[j];
+	for (let j = 0; j < msgs.length; j++) {
+		let rowx = x;
+		let msg = msgs[j];
 		if (floatRight) rowx -= ctx.measureText(msg).width + 10;
 		//ctx.fillText(msg, rowx, y);
 		drawOutlineText({
@@ -3046,15 +3041,15 @@ function drawTextBlock(ctx, msgs, x, y, floatRight) {
 	ctx.restore();
 }
 
-var view = {
+let view = {
 	center : new vec2(),
 	bbox : new box2()
 };
 
-var possibleEquipField;
-var possibleEquipItem;
+let possibleEquipField;
+let possibleEquipItem;
 function draw() {
-	var ctx = canvas.getContext('2d');
+	let ctx = canvas.getContext('2d');
 	if (!player) {
 		return;
 	}
@@ -3064,8 +3059,8 @@ function draw() {
 
 	ctx.fillRect(0,0,canvas.width,canvas.height);
 	
-	var widthInTiles = Math.floor(canvas.width / tileSize.x);
-	var heightInTiles = Math.floor(canvas.height / tileSize.y);
+	let widthInTiles = Math.floor(canvas.width / tileSize.x);
+	let heightInTiles = Math.floor(canvas.height / tileSize.y);
 	view.bbox.min.x = Math.ceil(view.center.x - widthInTiles / 2);
 	view.bbox.min.y = Math.ceil(view.center.y - heightInTiles / 2);
 	if (!map.wrap) {
@@ -3080,17 +3075,17 @@ function draw() {
 		if (view.bbox.max.x >= map.size.x) view.bbox.max.x = map.size.x-1;
 		if (view.bbox.max.y >= map.size.y) view.bbox.max.y = map.size.y-1;
 	}
-	var x, y, rx, ry;
+	let x, y, rx, ry;
 	//draw tiles first
 	for (y = view.bbox.min.y, ry = 0; y <= view.bbox.max.y; y++, ry++) {
 		for (x = view.bbox.min.x, rx = 0; x <= view.bbox.max.x; x++, rx++) {
-			var tile = map.getTile(x,y);
+			let tile = map.getTile(x,y);
 			
 			ctx.drawImage(tile.img, rx * tileSize.x, ry * tileSize.y, tileSize.x, tileSize.y);
 			
 			if ('objs' in tile) {
-				for (var i = 0; i < tile.objs.length; i++) {
-					var obj = tile.objs[i];
+				for (let i = 0; i < tile.objs.length; i++) {
+					let obj = tile.objs[i];
 					if ('draw' in obj) obj.draw(ctx);
 				}
 			}
@@ -3102,8 +3097,8 @@ function draw() {
 		ctx.fillColor = map.fogColor;
 		for (y = view.bbox.min.y, ry = 0; y <= view.bbox.max.y; y++, ry++) {
 			for (x = view.bbox.min.x, rx = 0; x <= view.bbox.max.x; x++, rx++) {
-				var tile = map.getTile(x,y);
-				var light = 0;
+				let tile = map.getTile(x,y);
+				let light = 0;
 				if ('light' in tile) {
 					light = tile.light;
 				}
@@ -3115,11 +3110,11 @@ function draw() {
 	}
 
 	if (castingInfo) {
-		for (var y = player.pos.y - castingInfo.spell.range; y <= player.pos.y + castingInfo.spell.range; y++) {
-			for (var x = player.pos.x - castingInfo.spell.range; x <= player.pos.x + castingInfo.spell.range; x++) {
+		for (let y = player.pos.y - castingInfo.spell.range; y <= player.pos.y + castingInfo.spell.range; y++) {
+			for (let x = player.pos.x - castingInfo.spell.range; x <= player.pos.x + castingInfo.spell.range; x++) {
 				if (distL1(player.pos, new vec2(x,y)) <= castingInfo.spell.range) {
-					var rx = (x - view.bbox.min.x) * tileSize.x;
-					var ry = (y - view.bbox.min.y) * tileSize.y;
+					let rx = (x - view.bbox.min.x) * tileSize.x;
+					let ry = (y - view.bbox.min.y) * tileSize.y;
 					ctx.save();
 					ctx.globalAlpha = .5;
 					ctx.fillStyle = 'rgb(0,0,255)';
@@ -3129,11 +3124,11 @@ function draw() {
 			}
 		}
 	
-		for (var y = castingInfo.target.y - castingInfo.spell.area; y <= castingInfo.target.y + castingInfo.spell.area; y++) {
-			for (var x = castingInfo.target.x - castingInfo.spell.area; x <= castingInfo.target.x + castingInfo.spell.area; x++) {
+		for (let y = castingInfo.target.y - castingInfo.spell.area; y <= castingInfo.target.y + castingInfo.spell.area; y++) {
+			for (let x = castingInfo.target.x - castingInfo.spell.area; x <= castingInfo.target.x + castingInfo.spell.area; x++) {
 				if (distL1(castingInfo.target, new vec2(x,y)) <= castingInfo.spell.area) {
-					var rx = (x - view.bbox.min.x) * tileSize.x;
-					var ry = (y - view.bbox.min.y) * tileSize.y;
+					let rx = (x - view.bbox.min.x) * tileSize.x;
+					let ry = (y - view.bbox.min.y) * tileSize.y;
 					ctx.save();
 					ctx.globalAlpha = .5;
 					ctx.fillStyle = 'rgb(255,0,0)';
@@ -3144,26 +3139,26 @@ function draw() {
 		}
 	}
 
-	var statFields = ['hpMax', 'mpMax', 'warmth', 'physAttack', 'physHitChance', 'physEvade', 'magicAttack', 'magicHitChance', 'magicEvade', 'attackOffsets'];
-	var stats = {};
-	for (var i = 0; i < statFields.length; i++) {
-		var field = statFields[i];
+	let statFields = ['hpMax', 'mpMax', 'warmth', 'physAttack', 'physHitChance', 'physEvade', 'magicAttack', 'magicHitChance', 'magicEvade', 'attackOffsets'];
+	let stats = {};
+	for (let i = 0; i < statFields.length; i++) {
+		let field = statFields[i];
 		stats[field] = player.stat(field);
 		if (field == 'attackOffsets') stats[field] = stats[field].length;
 	}
 	if (possibleEquipField) {
-		var altStats = {};
-		var oldEquip = player[possibleEquipField];
+		let altStats = {};
+		let oldEquip = player[possibleEquipField];
 		if (possibleEquipItem) {
 			player[possibleEquipField] = possibleEquipItem;
 		} else {
 			delete player[possibleEquipField];
 		}
-		for (var i = 0; i < statFields.length; i++) {
-			var field = statFields[i];
-			var altStat = player.stat(field);
+		for (let i = 0; i < statFields.length; i++) {
+			let field = statFields[i];
+			let altStat = player.stat(field);
 			if (field == 'attackOffsets') altStat = altStat.length;
-			var diff = altStat - stats[field];
+			let diff = altStat - stats[field];
 			if (diff > 0) {
 				stats[field] = '(+' + diff + ')';
 			} else if (diff < 0) {
@@ -3205,11 +3200,11 @@ function draw() {
 }
 
 function pickFreePos(classifier) {
-	for (var attempt = 0; attempt < 1000; attempt++) {
-		var pos = randomBoxPos(map.bbox);
-		var tile = map.getTile(pos.x, pos.y);
+	for (let attempt = 0; attempt < 1000; attempt++) {
+		let pos = randomBoxPos(map.bbox);
+		let tile = map.getTile(pos.x, pos.y);
 		if ('objs' in tile) continue;
-		var good;
+		let good;
 		if (classifier) good = classifier(tile);
 		else good = !(tile.solid || tile.water);
 		if (!good) continue;
@@ -3222,11 +3217,11 @@ function pickFreePos(classifier) {
 
 function update() {
 	if ('spawn' in map) {
-		for (var i = 0; i < map.spawn.length; i++) {
-			var spawnInfo = map.spawn[i];
+		for (let i = 0; i < map.spawn.length; i++) {
+			let spawnInfo = map.spawn[i];
 			if (Math.random() < spawnInfo.rate && map.objs.length < 2000) {
-				var spawnClass = spawnInfo.type;
-				var classifier = undefined;
+				let spawnClass = spawnInfo.type;
+				let classifier = undefined;
 				if (spawnClass.prototype.movesInWater) {
 					classifier = function(tile) { return tile.water; };
 				}
@@ -3239,20 +3234,20 @@ function update() {
 	if ('fogDecay' in map) {
 		for (y = view.bbox.min.y-1; y <= view.bbox.max.y+1; y++) {
 			for (x = view.bbox.min.x-1; x <= view.bbox.max.x+1; x++) {
-				var tile = map.getTile(x,y);
+				let tile = map.getTile(x,y);
 				if (tile && 'light' in tile) {
 					if (view.bbox.contains(new vec2(x,y))) {
 						tile.light = Math.max(0, tile.light - map.fogDecay);
 					} else {
-						delete tile;
+						delete map.tiles[y][x];//delete tile;
 					}
 				}
 			}
 		}
 	}
 
-	for (var i = 0; i < map.objs.length; i++) {
-		var obj = map.objs[i];
+	for (let i = 0; i < map.objs.length; i++) {
+		let obj = map.objs[i];
 		if (obj.remove) {
 			obj.clearTile();
 			map.objs.splice(i,1);
@@ -3290,7 +3285,7 @@ function setMap(args) {
 		}
 	
 		if (map.resetObjs) {
-			for (var i = 0; i < map.objs.length; i++) {
+			for (let i = 0; i < map.objs.length; i++) {
 				map.objs[i].clearTile();
 			}
 			delete map.objs;
@@ -3301,7 +3296,7 @@ function setMap(args) {
 	if (!(args.map in maps)) throw "failed to find map "+args.map; 
 	map = maps[args.map];
 
-	var firstSpawn = false;
+	let firstSpawn = false;
 	if (!('objs' in map)) {
 		firstSpawn = true;
 		map.objs = [];
@@ -3309,8 +3304,8 @@ function setMap(args) {
 
 	//spawn any fixed objs
 	if (map.fixedObjs && firstSpawn) {
-		for (var i = 0; i < map.fixedObjs.length; i++) {
-			var fixedObj = map.fixedObjs[i];
+		for (let i = 0; i < map.fixedObjs.length; i++) {
+			let fixedObj = map.fixedObjs[i];
 			new fixedObj.type(fixedObj);
 		}
 	}
@@ -3364,11 +3359,11 @@ function interactKeyCallback(key, event) {
 }
 
 function doEquipScreen() {
-	var equipPrompt;
-	var refreshEquipPrompt = function() {
-		for (var i = 0; i < player.equipFields.length; i++) {
-			var field = player.equipFields[i];
-			var s = field;
+	let equipPrompt;
+	let refreshEquipPrompt = function() {
+		for (let i = 0; i < player.equipFields.length; i++) {
+			let field = player.equipFields[i];
+			let s = field;
 			if (field in player) s += ': ' + player[field].name;
 			equipPrompt.options[i] = s;
 		}
@@ -3377,12 +3372,12 @@ function doEquipScreen() {
 	equipPrompt = new ClientPrompt(
 		player.equipFields,
 		function(cmd, index) {
-			var equipField = player.equipFields[index];
-			var equippableItems = player.items.filter(function(item) {
+			let equipField = player.equipFields[index];
+			let equippableItems = player.items.filter(function(item) {
 				return player.canEquip(equipField, item);
 			});
 			equippableItems.splice(0, 0, undefined);
-			var equipFieldPrompt = new ClientPrompt(
+			let equipFieldPrompt = new ClientPrompt(
 				equippableItems.map(function(item) { 
 					if (item) return item.name;
 					return 'Nothing';
@@ -3390,7 +3385,7 @@ function doEquipScreen() {
 				function(itemName, index) {
 					equipFieldPrompt.close();
 					
-					var item = equippableItems[index];
+					let item = equippableItems[index];
 					if (item) player.items.splice(player.items.indexOf(item), 1);
 					player.setEquip(equipField, item);
 					
@@ -3410,14 +3405,14 @@ function doEquipScreen() {
 }
 
 function doSpellScreen() {
-	var spells = player.spells.filter(function(spell) {
+	let spells = player.spells.filter(function(spell) {
 		return spell.canPayFor(player);	//TODO grey out uncastable spells
 	});
 	if (!spells.length) {
 		clientMessage("You don't have any spells that you can use right now"); 
 		return;
 	}
-	var spellPrompt = new ClientPrompt(
+	let spellPrompt = new ClientPrompt(
 		spells.map(function(spell) {
 			return spell.name+' ('+spell.cost+')';
 		}),
@@ -3429,19 +3424,19 @@ function doSpellScreen() {
 }
 
 function doItemScreen() {
-	var items = player.items.filter(function(item) {
+	let items = player.items.filter(function(item) {
 		return 'use' in item;	//TODO grey out unusable items
 	});
 	if (!items.length) {
 		clientMessage("You don't have any items that you can use right now"); 
 		return;
 	}
-	var itemPrompt = new ClientPrompt(items.map(function(item, index) {
+	let itemPrompt = new ClientPrompt(items.map(function(item, index) {
 		return item.name;
 	}), function(cmd, index) {
 		itemPrompt.close();
-		var item = items[index];
-		var result = item.use(player);
+		let item = items[index];
+		let result = item.use(player);
 		if (result !== 'keep') {
 			player.items.splice(player.items.indexOf(item), 1);
 		}
@@ -3449,7 +3444,7 @@ function doItemScreen() {
 }
 
 function doMenu() {
-	var menuPrompt = new ClientPrompt([
+	let menuPrompt = new ClientPrompt([
 		'Pass (p)',
 		'Attack (a)',
 		'Spell (s)',
@@ -3539,8 +3534,8 @@ function handleCommand(key, event) {
 }
 
 function handleKeyEvent(event) {
-	var keyCode = event.keyCode;
-	var key = 'cancel';
+	let keyCode = event.keyCode;
+	let key = 'cancel';
 	switch (keyCode) {
 	case 13:
 	case 32:
@@ -3575,10 +3570,10 @@ function handleKeyEvent(event) {
 //0 = button mash + repeat key
 //1 = button mash, but no repeat keys
 //2 = no button mash, no repeat keys 
-var keyIntervalMethod = 0;
+let keyIntervalMethod = 0;
 
-var keyDownInterval;
-var lastKeyEvent;
+let keyDownInterval;
+let lastKeyEvent;
 function keyEventHandler(event) {
 	event.preventDefault();
 	lastKeyEvent = event;
@@ -3617,9 +3612,9 @@ mousedown
 mouseup
 click
 */
-var lastMouseEvent;
-var mouseIntervalMethod = 2;
-var mouseDownInterval;
+let lastMouseEvent;
+let mouseIntervalMethod = 2;
+let mouseDownInterval;
 function handleButtonCommand(cmd, press, e) {
 	if (!player) return;
 	e.preventDefault();	//without this, touch events will cause multiple presses from touchstart and mousedown
@@ -3648,6 +3643,8 @@ function handleButtonCommand(cmd, press, e) {
 	}
 }
 
+let buttonSys;
+
 function mouseEventHandler(event) {
 	buttonSys.show();
 //	event.preventDefault();
@@ -3658,10 +3655,10 @@ function touchEventHandler(event) {
 //	event.preventDefault();
 }
 
-var baseRatio = 64/2000;	//2000 resolution, 64 tilesize
+let baseRatio = 64/2000;	//2000 resolution, 64 tilesize
 function onresize() {
-	canvas.width = $(window).width();
-	canvas.height = $(window).height();
+	canvas.width = window.innerWidth;
+	canvas.height = window.innerHeight;
 	tileSize.x = tileSize.y = Math.ceil(canvas.width*baseRatio);
 	fontSize = Math.ceil(canvas.width*64/2000);
 	draw();
@@ -3678,10 +3675,10 @@ function cheat() {
 }
 
 // buttonInfos - used by buttonSys.init and by image precaching
-var buttonBorder = new vec2(.02, .04);
-var buttonSeparation = new vec2(.005, .01);
-var buttonSize = new vec2(.1, .2);
-var buttonInfos = [
+let buttonBorder = new vec2(.02, .04);
+let buttonSeparation = new vec2(.005, .01);
+let buttonSize = new vec2(.1, .2);
+let buttonInfos = [
 	{
 		cmd:'left',
 		url:'icons/left.png',
@@ -3733,20 +3730,22 @@ var buttonInfos = [
 ];
 
 function initGame() {
-	canvas = $('<canvas>', {
+	canvas = DOM('canvas', {
 		css:{
 			position:'absolute',
 			top:'0px',
 			left:'0px'
-		}
-	}).attr('width', 640)
-		.attr('height', 480)
-		.appendTo(document.body)
-		.get(0);
+		},
+		attrs:{
+			width : 640,
+			height : 480,
+		},
+		appendTo:document.body,
+	});
 
-	makeDOM('div', {
-		parent:document.body,
-		style:{height:'100px'}
+	DOM('div', {
+		css:{height:'100px'},
+		appendTo:document.body,
 	});
 
 	//scroll past titlebar in mobile devices
@@ -3755,38 +3754,38 @@ function initGame() {
 	if (navigator.userAgent.match(/Mobile/i)) {
 		mobile = true;
 		window.scrollTo(0,0); // reset in case prev not scrolled 
-		var nPageH = $(document).height(); 
-		var nViewH = window.outerHeight; 
+		let nPageH = document.offsetHeight; 
+		let nViewH = window.outerHeight; 
 		if (nViewH > nPageH) { 
 			nViewH /= window.devicePixelRatio;
-			$('BODY').css('height',nViewH + 'px'); 
+			document.body.style.height = nViewH + 'px'; 
 		} 
 		window.scrollTo(0,1); 
 	}
 
 	//now that we have preloaded images, assign tiles
-	for (var i = 0; i < tileTypes.length; i++) {
-		var tileType = tileTypes[i];
+	for (let i = 0; i < tileTypes.length; i++) {
+		let tileType = tileTypes[i];
 		tileType.prototype.imgs = [];
-		for (var j = 0; j < tileType.prototype.urls.length; j++) {
-			tileType.prototype.imgs[j] = makeDOM('img', {src:tileType.prototype.urls[j]});
+		for (let j = 0; j < tileType.prototype.urls.length; j++) {
+			tileType.prototype.imgs[j] = DOM('img', {src:tileType.prototype.urls[j]});
 		}
 	}
-	for (var i = 0; i < objTypes.length; i++) { 
-		var objType = objTypes[i];
-		objType.prototype.img = makeDOM('img', {src:objType.prototype.url});
+	for (let i = 0; i < objTypes.length; i++) { 
+		let objType = objTypes[i];
+		objType.prototype.img = DOM('img', {src:objType.prototype.url});
 	}
-	for (var i = 0; i < spells.length; i++) {
-		var spell = spells[i];
-		if ('url' in spell) spell.img = makeDOM('img', {src:spell.url});
+	for (let i = 0; i < spells.length; i++) {
+		let spell = spells[i];
+		if ('url' in spell) spell.img = DOM('img', {src:spell.url});
 	}
 
 	initMaps();
 	
-	$(document).keydown(keyEventHandler);
-	$(document).keyup(keyEventHandler);
-	$(document).mousedown(mouseEventHandler);
-//	$(document).mouseup(mouseEventHandler);
+	document.addEventListener('keydown', keyEventHandler);
+	document.addEventListener('keyup', keyEventHandler);
+	document.addEventListener('mousedown', mouseEventHandler);
+//	document.addEventListener('mouseup', mouseEventHandler);
 	//android...
 	if (document.addEventListener) {
 		document.addEventListener('touchstart', touchEventHandler, false);
@@ -3799,14 +3798,17 @@ function initGame() {
 	}
 	//document.addEventListener('click', function(event) { event.preventDefault(); }, false);
 
-	$(window).resize(onresize);
+	window.addEventListener('resize', onresize);
 
-	buttonSys.init({
+	buttonSys = new ButtonSys({
 		fontSize : fontSize,
 		callback : handleButtonCommand,
 		buttons : buttonInfos
 	});
-	
+
+
+
+
 	onresize();
 
 	player = new HeroObj({});
@@ -3814,28 +3816,25 @@ function initGame() {
 }
 
 function initRes() {
-	var urls = [];
+	let urls = [];
 	//add tile types
-	for (var i = 0; i < tileTypes.length; i++) {
+	for (let i = 0; i < tileTypes.length; i++) {
 		urls = urls.concat(tileTypes[i].prototype.urls);
 	}
 	//add objs
-	for (var i = 0; i < objTypes.length; i++) { 
+	for (let i = 0; i < objTypes.length; i++) { 
 		urls.push(objTypes[i].prototype.url);
 	}
 	//add spells
-	for (var i = 0; i < spells.length; i++) {
-		var spell = spells[i];
+	for (let i = 0; i < spells.length; i++) {
+		let spell = spells[i];
 		if ('url' in spell) urls.push(spell.url);
 	}
 	//add icons
-	for (var i = 0; i < buttonInfos.length; i++) {
+	for (let i = 0; i < buttonInfos.length; i++) {
 		urls.push(buttonInfos[i].url);
 	}
-	$(urls).preload(initGame);
+	preload(urls, initGame);
 }
 
-$(document).ready(function() {
-	initRes();
-});
-
+initRes();
