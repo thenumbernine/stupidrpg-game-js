@@ -2756,7 +2756,8 @@ function genDungeonLevel(map,prevMapName,nextMapName,avgRoomSize) {
 			msg:'Tee Hee! Take me back to the village',
 			onInteract:function(player) {
 				// so much for ES6 OOP being more useful than hacked-together original JS prototypes...
-				MerchantObj.prototye.onInteract.apply(this, arguments);
+				// can't call super here even if this function is added to a class prototype
+				MerchantObj.prototype.onInteract.apply(this, arguments);
 				player.adjustPoints('hp', player.stat('hpMax'));
 				// unlock the next story point
 				//TODO quests?
@@ -3807,9 +3808,9 @@ function initGame() {
 	});
 
 
-
-
 	onresize();
+
+	// TOOD here save/load progress?
 
 	player = new HeroObj({});
 	setMap({map:'Helpless Village'});
