@@ -14,32 +14,10 @@ general client prompt
 	integrate with display (no longer a dom)
 */
 
-import {DOM, preload, assert, assertExists} from '/js/util.js';
+import {DOM, preload, assert, assertExists, makeClass, isa} from '/js/util.js';
 import {vec2, box2} from '/js/vec.js';
 import {ButtonSys} from './buttons.js';
 // util functions
-
-//cl is a class
-//sub is a subclass or an instance of a subclass
-function isa(sub, cl) {
-	return sub instanceof cl
-		|| sub.prototype instanceof cl
-		|| sub === cl;
-}
-
-//I was hoping to replace my 'makeClass' function/new/prototype stuff with ES6 classes
-// too bad ES6 breaks static member access
-// I guess I still have a use for this, even using ES6 classes:
-function makeClass(x) {
-	let cl = class extends x.super {}
-	for (let k in x) {
-		if (k != 'super') {
-			cl.prototype[k] = x[k];
-		}
-	}
-	return cl;
-}
-
 
 Math.sign = function(x) {
 	if (x < 0) return -1;
