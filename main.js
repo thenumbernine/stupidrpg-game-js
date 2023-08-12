@@ -3554,6 +3554,7 @@ let keyIntervalMethod = 0;
 let keyDownInterval;
 let lastKeyEvent;
 function keyEventHandler(event) {
+	buttonSys.hide();
 	event.preventDefault();
 	lastKeyEvent = event;
 	if (event.type == 'keydown') {
