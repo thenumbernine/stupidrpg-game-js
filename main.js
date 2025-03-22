@@ -14,7 +14,8 @@ general client prompt
 	integrate with display (no longer a dom)
 */
 
-import {DOM, preload, assert, assertExists, makeClass, isa} from '/js/util.js';
+import {Canvas, Div, Img} from '/js/dom.js';
+import {preload, assert, assertExists, makeClass, isa} from '/js/util.js';
 import {vec2, box2} from '/js/vec.js';
 import {ButtonSys} from './buttons.js';
 // util functions
@@ -220,8 +221,8 @@ onclose
 class ClientPrompt {
 	constructor(options, onchoose, onselect, onclose) {
 		options = options.slice();
-		this.div = DOM('div', {
-			css:{
+		this.div = Div({
+			style:{
 				position:'absolute',
 				border:'2px solid black',
 				color:'#ffffff',
@@ -243,8 +244,8 @@ class ClientPrompt {
 		let visibleHeight = 0;//this.div.offsetHeight;
 		for (let i = 0; i < options.length; i++) {
 			let option = options[i];
-			let optionDiv = DOM('div', {
-				css:{
+			let optionDiv = Div({
+				style:{
 					border:'1px solid white',
 					paddingTop:'1px',
 					paddingBottom:'1px', 
@@ -2110,12 +2111,12 @@ class Map {
 		if ('playerStart' in args) this.playerStart = new vec2(args.playerStart);
 		if ('fogColor' in args) this.fogColor = args.fogColor;
 		if ('url' in args) {
-			let img = DOM('img');
+			let img = Img();
 			let thiz = this;
 			img.onload = function() {
 				thiz.size = new vec2(img.width, img.height);
 				thiz.bbox = new box2(new vec2(), thiz.size.sub(1));
-				let canvas = DOM('canvas', {width:img.width, height:img.height});
+				let canvas = Canvas({width:img.width, height:img.height});
 				let ctx = canvas.getContext('2d');
 				ctx.drawImage(img, 0, 0);
 				let imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -3710,8 +3711,8 @@ let buttonInfos = [
 ];
 
 function initGame() {
-	canvas = DOM('canvas', {
-		css:{
+	canvas = Canvas({
+		style:{
 			position:'absolute',
 			top:'0px',
 			left:'0px'
@@ -3723,8 +3724,8 @@ function initGame() {
 		appendTo:document.body,
 	});
 
-	DOM('div', {
-		css:{height:'100px'},
+	Div({
+		style:{height:'100px'},
 		appendTo:document.body,
 	});
 
@@ -3748,16 +3749,16 @@ function initGame() {
 		let tileType = tileTypes[i];
 		tileType.prototype.imgs = [];
 		for (let j = 0; j < tileType.prototype.urls.length; j++) {
-			tileType.prototype.imgs[j] = DOM('img', {src:tileType.prototype.urls[j]});
+			tileType.prototype.imgs[j] = Img({src:tileType.prototype.urls[j]});
 		}
 	}
 	for (let i = 0; i < objTypes.length; i++) { 
 		let objType = objTypes[i];
-		objType.prototype.img = DOM('img', {src:objType.prototype.url});
+		objType.prototype.img = Img({src:objType.prototype.url});
 	}
 	for (let i = 0; i < spells.length; i++) {
 		let spell = spells[i];
-		if ('url' in spell) spell.img = DOM('img', {src:spell.url});
+		if ('url' in spell) spell.img = Img({src:spell.url});
 	}
 
 	initMaps();
